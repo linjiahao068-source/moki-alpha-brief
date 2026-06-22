@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --brand: #F2A618;
+  --brand-hover: #E58900;
+  --brand-soft: #FFF1CE;
+  --brand-soft-strong: #FFE8B8;
+  --brand-border: #E8CDA1;
+  --brand-ink: #5E3000;
+  --brand-dot: #E58900;
+
+  --background: #FCFAF6;
+  --foreground: #0C140F;
+  --muted: #F3F0EA;
+  --border: #E0DED8;
+
+  --risk-soft: #FFF6F2;
+  --risk-border: #F4CDC6;
+  --risk-ink: #65362E;
+
+  --font-sans:
+    "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+    system-ui, sans-serif;
+  --font-mono:
+    "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-strong: var(--brand-soft-strong);
+  --color-brand-border: var(--brand-border);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-dot: var(--brand-dot);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-risk-soft: var(--risk-soft);
+  --color-risk-border: var(--risk-border);
+  --color-risk-ink: var(--risk-ink);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+html {
+  width: 100%;
+  min-width: 0;
+  scroll-behavior: smooth;
+}
+
+body {
+  width: 100%;
+  min-width: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(main, article, section, aside, nav, header, footer, div) {
+  min-width: 0;
+}
+
+th,
+td {
+  overflow-wrap: anywhere;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--brand-soft-strong);
+  color: var(--brand-ink);
+}

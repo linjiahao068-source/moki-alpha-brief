@@ -1,0 +1,296 @@
+export const briefJsonSchema = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  title: "Moki Alpha BriefDocument",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "slug",
+    "metadata",
+    "hero",
+    "cta",
+    "sections",
+    "scenarioAnalysis",
+    "monitoringDashboard",
+    "sourceNote",
+    "disclaimer",
+  ],
+  properties: {
+    schemaVersion: { const: "0.1" },
+    slug: { type: "string" },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      required: [
+        "ticker",
+        "companyName",
+        "title",
+        "briefType",
+        "language",
+        "isMock",
+        "generatedAt",
+        "updatedAt",
+        "frameworkName",
+        "frameworkStatus",
+        "dataMode",
+        "brand",
+        "product",
+        "shareLabel",
+      ],
+      properties: {
+        ticker: { type: "string" },
+        companyName: { type: "string" },
+        exchange: { type: "string" },
+        title: { type: "string" },
+        briefType: { type: "string" },
+        language: { enum: ["zh-CN", "en-US"] },
+        isMock: { const: true },
+        generatedAt: { type: "string" },
+        updatedAt: { type: "string" },
+        frameworkName: { type: "string" },
+        frameworkStatus: { const: "mock-reference-only" },
+        dataMode: {
+          enum: [
+            "mock",
+            "llm-demo-no-live-data",
+            "evidence-draft",
+            "verified-real-data",
+          ],
+        },
+        brand: { const: "Moki" },
+        product: { const: "Moki Alpha Brief" },
+        shareLabel: { type: "string" },
+      },
+    },
+    hero: {
+      type: "object",
+      additionalProperties: true,
+      required: ["eyebrow", "headline", "subheadline", "badges", "metrics"],
+      properties: {
+        eyebrow: { type: "string" },
+        headline: { type: "string" },
+        subheadline: { type: "string" },
+        badges: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["label", "tone"],
+            properties: {
+              label: { type: "string" },
+              tone: { enum: ["brand", "neutral"] },
+            },
+          },
+        },
+        metrics: {
+          type: "array",
+          items: { $ref: "#/$defs/briefMetric" },
+        },
+      },
+    },
+    cta: {
+      type: "object",
+      additionalProperties: true,
+      required: ["title", "description", "buttonLabel"],
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        buttonLabel: { type: "string" },
+        buttonHref: { type: "string" },
+      },
+    },
+    sections: {
+      type: "array",
+      minItems: 10,
+      items: { $ref: "#/$defs/section" },
+    },
+    scenarioAnalysis: {
+      type: "object",
+      additionalProperties: true,
+      required: ["id", "order", "title", "description", "scenarios"],
+      properties: {
+        id: { const: "scenarios" },
+        order: { type: "number" },
+        title: { type: "string" },
+        shortTitle: { type: "string" },
+        description: { type: "string" },
+        currentPrice: { type: "string" },
+        probabilityWeightedTarget: { type: "string" },
+        scenarios: {
+          type: "array",
+          minItems: 3,
+          items: {
+            type: "object",
+            required: [
+              "name",
+              "label",
+              "probability",
+              "keyAssumptions",
+              "targetPrice",
+              "impliedReturn",
+            ],
+            properties: {
+              name: { type: "string" },
+              label: { type: "string" },
+              probability: { type: "string" },
+              keyAssumptions: { type: "string" },
+              targetPrice: { type: "string" },
+              impliedReturn: { type: "string" },
+              tone: { enum: ["bull", "base", "bear"] },
+              operatingSetup: { type: "string" },
+              trigger: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    monitoringDashboard: {
+      type: "object",
+      additionalProperties: true,
+      required: ["id", "order", "title", "description", "metrics"],
+      properties: {
+        id: { const: "monitoring-dashboard" },
+        order: { type: "number" },
+        title: { type: "string" },
+        shortTitle: { type: "string" },
+        description: { type: "string" },
+        metrics: {
+          type: "array",
+          minItems: 3,
+          items: {
+            type: "object",
+            required: ["metric", "whyItMatters", "threshold"],
+            properties: {
+              metric: { type: "string" },
+              whyItMatters: { type: "string" },
+              threshold: { type: "string" },
+              status: {
+                enum: ["Healthy", "Watch", "Caution", "Trigger"],
+              },
+              cadence: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    evidencePack: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        asOf: { type: "string" },
+        ticker: { type: "string" },
+        dataMode: { enum: ["evidence-draft", "verified-real-data"] },
+        sources: { type: "array" },
+      },
+    },
+    sourceNote: {
+      type: "object",
+      additionalProperties: true,
+      required: ["id", "title", "paragraphs"],
+      properties: {
+        id: { const: "source-note" },
+        title: { type: "string" },
+        paragraphs: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string" },
+        },
+      },
+    },
+    disclaimer: {
+      type: "object",
+      additionalProperties: true,
+      required: ["text"],
+      properties: {
+        title: { type: "string" },
+        text: { type: "string" },
+      },
+    },
+  },
+  $defs: {
+    briefMetric: {
+      type: "object",
+      required: ["label", "value"],
+      properties: {
+        label: { type: "string" },
+        value: { type: "string" },
+        detail: { type: "string" },
+      },
+    },
+    section: {
+      type: "object",
+      additionalProperties: true,
+      required: ["id", "order", "title", "kind", "blocks"],
+      properties: {
+        id: { type: "string" },
+        order: { type: "number" },
+        title: { type: "string" },
+        shortTitle: { type: "string" },
+        eyebrow: { type: "string" },
+        kind: {
+          enum: [
+            "executive-view",
+            "company-snapshot",
+            "industry-chain",
+            "competitive-landscape",
+            "financial-deep-dive",
+            "value-drivers",
+            "valuation",
+            "variant-perception",
+            "catalysts",
+            "risks",
+            "bottom-line",
+          ],
+        },
+        summary: { type: "string" },
+        blocks: {
+          type: "array",
+          minItems: 1,
+          items: {
+            oneOf: [
+              {
+                type: "object",
+                required: ["type", "content"],
+                properties: {
+                  type: { const: "paragraph" },
+                  content: { type: "string" },
+                },
+              },
+              {
+                type: "object",
+                required: ["type", "items"],
+                properties: {
+                  type: { enum: ["bulletList", "orderedList"] },
+                  items: { type: "array", items: { type: "string" } },
+                },
+              },
+              {
+                type: "object",
+                required: ["type", "content"],
+                properties: {
+                  type: { const: "callout" },
+                  title: { type: "string" },
+                  content: { type: "string" },
+                  tone: { enum: ["neutral", "brand", "risk"] },
+                  label: { type: "string" },
+                },
+              },
+              {
+                type: "object",
+                required: ["type", "metrics"],
+                properties: {
+                  type: { const: "metricGrid" },
+                  metrics: {
+                    type: "array",
+                    items: { $ref: "#/$defs/briefMetric" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export const briefJsonSchemaText = JSON.stringify(briefJsonSchema, null, 2);
