@@ -4,6 +4,8 @@ export type EvidenceConfidence = "low" | "medium" | "high";
 
 export type SearchProviderName = "mock" | "tavily";
 
+export type SecProviderName = "mock" | "sec";
+
 export type EvidenceQueryPurpose =
   | "recent-news"
   | "company-ir"
@@ -100,6 +102,44 @@ export type EvidenceConsensusData = {
   asOf: string;
   metrics?: Record<string, string>;
   sourceId?: string;
+};
+
+export type SecFilingSummary = {
+  accessionNumber: string;
+  form: "10-K" | "10-Q" | "8-K" | string;
+  filingDate: string;
+  reportDate?: string;
+  primaryDocument?: string;
+  description?: string;
+  secUrl?: string;
+};
+
+export type SecFiscalFact = {
+  concept: string;
+  label: string;
+  value: number;
+  unit: string;
+  fy?: number;
+  fp?: string;
+  form?: string;
+  filed?: string;
+  frame?: string;
+  periodEnd?: string;
+  confidence: "high";
+  source: "sec-companyfacts";
+};
+
+export type SecEvidencePack = {
+  asOf: string;
+  ticker: string;
+  cik: string;
+  companyName?: string;
+  provider: SecProviderName;
+  dataMode: "evidence-draft";
+  fiscalFacts: SecFiscalFact[];
+  recentFilings: SecFilingSummary[];
+  sources: EvidenceSource[];
+  warnings?: string[];
 };
 
 export type EvidencePack = {

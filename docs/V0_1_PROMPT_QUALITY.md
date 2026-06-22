@@ -175,3 +175,11 @@ When an EvidencePack is present, prompt instructions now include source-confiden
 - If evidence is thin, the brief should say the point needs SEC / IR / market data verification instead of inventing a fact.
 
 See also: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.
+
+## Phase 9.2 SEC Prompt Rules
+
+When `secEvidencePack` exists, prompt instructions require Financial Statement Deep Dive to prioritize SEC companyfacts and require sourceNote to mention SEC provider, CIK, recent filing count, and fiscal fact count.
+
+Search evidence and SEC evidence must stay distinguishable. Tavily snippets cannot be converted into SEC fiscal facts. Valuation still cannot produce real target-price commitments because real-time price and consensus estimates are not connected.
+
+See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.

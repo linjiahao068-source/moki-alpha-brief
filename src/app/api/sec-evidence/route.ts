@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateBrief } from "@/lib/llm/generateBrief";
-import type { GenerateBriefInput } from "@/lib/llm/types";
+import { buildSecEvidencePack } from "@/lib/sec/buildSecEvidencePack";
+import type { SecInput } from "@/lib/sec/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,13 +16,13 @@ export async function POST(request: Request) {
         ok: false,
         provider: "mock",
         error: "Request body must be valid JSON.",
-        issues: [],
+        warnings: [],
       },
       { status: 400 },
     );
   }
 
-  const payload = body as Partial<GenerateBriefInput>;
+  const payload = body as Partial<SecInput>;
   const ticker = String(payload.ticker || "").trim().toUpperCase();
 
   if (!/^[A-Z0-9.-]{1,12}$/.test(ticker)) {
@@ -32,48 +32,21 @@ export async function POST(request: Request) {
         provider: "mock",
         error:
           "Ticker must be 1-12 characters and only contain A-Z, 0-9, dot, or hyphen.",
-        issues: [],
+        warnings: [],
       },
       { status: 400 },
     );
   }
 
-  const modelMode = payload.modelMode;
-
-  if (
-    modelMode !== undefined &&
-    modelMode !== "chat" &&
-    modelMode !== "reasoner"
-  ) {
-    return NextResponse.json(
-      {
-        ok: false,
-        provider: "mock",
-        error: "modelMode must be either chat or reasoner.",
-        issues: [],
-      },
-      { status: 400 },
-    );
-  }
-
-  const language =
-    payload.language === "en" || payload.language === "en-US"
-      ? "en"
-      : "zh-CN";
-  const result = await generateBrief({
+  const result = await buildSecEvidencePack({
     ticker,
     companyName:
       typeof payload.companyName === "string"
         ? payload.companyName.trim()
         : undefined,
-    language,
-    mode: "llm",
-    modelMode,
-    useSearch: payload.useSearch === true,
-    useSec: payload.useSec === true,
   });
 
-  return NextResponse.json(result, { status: result.brief ? 200 : result.ok ? 200 : 500 });
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
 
 export function GET() {
@@ -81,8 +54,8 @@ export function GET() {
     {
       ok: false,
       provider: "mock",
-      error: "Method not allowed. Use POST /api/generate-brief.",
-      issues: [],
+      error: "Method not allowed. Use POST /api/sec-evidence.",
+      warnings: [],
     },
     { status: 405 },
   );

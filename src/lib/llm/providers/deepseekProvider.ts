@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import OpenAI from "openai";
 import { validateBriefDocument } from "@/lib/briefs/validateBrief";
@@ -222,10 +222,15 @@ function normalizeDeepSeekBrief(
   const ticker = input.ticker.trim().toUpperCase();
   const now = formatCstTimestamp();
   const evidencePack = input.evidencePack;
-  const hasEvidencePack = Boolean(evidencePack);
+  const secEvidencePack = input.secEvidencePack;
+  const hasSearchEvidence = Boolean(evidencePack);
+  const hasSecEvidence = Boolean(secEvidencePack);
+  const hasAnyEvidence = hasSearchEvidence || hasSecEvidence;
+  const evidenceLabel = getEvidenceLabel(hasSearchEvidence, hasSecEvidence);
   const companyName =
     input.companyName?.trim() ||
     brief.metadata?.companyName ||
+    secEvidencePack?.companyName ||
     `${ticker} Demo Company`;
 
   brief.schemaVersion = "0.1";
@@ -246,24 +251,24 @@ function normalizeDeepSeekBrief(
       brief.metadata?.frameworkName ||
       "buy-side-equity-research-memo style workflow",
     frameworkStatus: "mock-reference-only",
-    dataMode: hasEvidencePack ? "evidence-draft" : "llm-demo-no-live-data",
+    dataMode: hasAnyEvidence ? "evidence-draft" : "llm-demo-no-live-data",
     brand: "Moki",
     product: "Moki Alpha Brief",
-    shareLabel: hasEvidencePack ? "Search Evidence Draft" : "LLM Demo Preview",
+    shareLabel: hasAnyEvidence ? evidenceLabel : "LLM Demo Preview",
   };
   brief.hero = {
     ...brief.hero,
     headline: brief.hero?.headline || ticker,
     subheadline: brief.hero?.subheadline || companyName,
     eyebrow: brief.hero?.eyebrow || "Alpha洞察 / 买方深度研报",
-    badges: ensureDemoBadge(brief.hero?.badges, hasEvidencePack),
+    badges: ensureDataBadge(brief.hero?.badges, evidenceLabel, hasAnyEvidence),
     metrics: brief.hero?.metrics || [],
   };
   brief.cta = {
     title: brief.cta?.title || "想生成你自己的研报？",
     description:
       brief.cta?.description ||
-      "登录 Moki，创建 Alpha Brief 任务，并把研究结果保存到你的投资工作台。本页当前仅为 LLM Demo。",
+      "登录 Moki，创建 Alpha Brief 任务，并把研究结果保存到你的投资工作台。本页当前仅为 LLM Demo / Evidence Draft。",
     buttonLabel: brief.cta?.buttonLabel || "生成我的研报",
     buttonHref: brief.cta?.buttonHref || "/generate",
   };
@@ -271,39 +276,46 @@ function normalizeDeepSeekBrief(
     id: "source-note",
     title: brief.sourceNote?.title || "Source & Method Note",
     paragraphs: [
-      ...(brief.sourceNote?.paragraphs || []),
-      hasEvidencePack
-        ? `Search Evidence Draft: DeepSeek 基于 evidencePack.newsItems 生成近期内容判断；searchProvider=${evidencePack?.searchProvider || "unknown"}，retrievedAt=${evidencePack?.asOf || now}，sourceCount=${evidencePack?.newsItems?.length || 0}。当前未接 SEC、实时股价、一致预期或数据库。`
-        : "当前结果由 DeepSeek provider 生成，用于验证 LLM 生成闭环；当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
-      "若页面中出现财务数字、估值倍数、目标价或隐含收益，均应理解为模拟 / 示例，用于展示研究结构，不代表真实数据。",
-    ],
+      ...(brief.sourceNote?.paragraphs || []).map(sanitizeUserVisibleBoundaryText),
+      buildEvidenceSourceNote({ evidencePack, secEvidencePack, now }),
+      "若页面中出现财务数字、估值倍数、目标价或隐含收益，必须理解为 SEC companyfacts / 搜索摘要 / 模拟示例 / 待核查语境，不代表实时行情、一致预期或正式投资建议。",
+    ].filter(Boolean),
   };
   brief.disclaimer = {
     title: brief.disclaimer?.title || "Disclaimer",
     text:
       brief.disclaimer?.text ||
-      "本页面仅供研究和信息参考，不构成投资建议。当前内容为 LLM Demo / No Live Data，不代表实时行情、正式评级或任何个性化建议。",
+      "本页面仅供研究和信息参考，不构成投资建议。当前内容为 LLM Demo / Evidence Draft，不代表实时行情、正式评级或任何个性化建议。",
   };
   brief.evidencePack = evidencePack;
+  brief.secEvidencePack = secEvidencePack;
 
   return brief;
 }
 
-function ensureDemoBadge(
+function getEvidenceLabel(hasSearchEvidence: boolean, hasSecEvidence: boolean) {
+  if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
+  if (hasSecEvidence) return "SEC Evidence Draft";
+  if (hasSearchEvidence) return "Search Evidence Draft";
+  return "LLM Demo / No Live Data";
+}
+
+function ensureDataBadge(
   badges: BriefDocument["hero"]["badges"] | undefined,
-  hasEvidencePack = false,
+  evidenceLabel: string,
+  hasAnyEvidence: boolean,
 ): BriefDocument["hero"]["badges"] {
   const next = Array.isArray(badges) ? [...badges] : [];
   const hasDataBadge = next.some((badge) =>
-    /demo|mock|no live data|sample|search evidence/i.test(badge.label),
+    /demo|mock|no live data|sample|search evidence|sec evidence/i.test(
+      badge.label,
+    ),
   );
 
   if (!hasDataBadge) {
     next.push({
-      label: hasEvidencePack
-        ? "Search Evidence Draft"
-        : "LLM Demo / No Live Data",
-      tone: hasEvidencePack ? "brand" : "neutral",
+      label: hasAnyEvidence ? evidenceLabel : "LLM Demo / No Live Data",
+      tone: hasAnyEvidence ? "brand" : "neutral",
     });
   }
 
@@ -312,6 +324,44 @@ function ensureDemoBadge(
   }
 
   return next;
+}
+
+function buildEvidenceSourceNote({
+  evidencePack,
+  secEvidencePack,
+  now,
+}: {
+  evidencePack: GenerateBriefInput["evidencePack"];
+  secEvidencePack: GenerateBriefInput["secEvidencePack"];
+  now: string;
+}) {
+  const notes: string[] = [];
+
+  if (evidencePack) {
+    notes.push(
+      `Search Evidence Draft: searchProvider=${evidencePack.searchProvider || "unknown"}; retrievedAt=${evidencePack.asOf || now}; sourceCount=${evidencePack.newsItems?.length || evidencePack.sources.length || 0}.`,
+    );
+  }
+
+  if (secEvidencePack) {
+    notes.push(
+      `SEC Evidence Draft: secProvider=${secEvidencePack.provider}; CIK=${secEvidencePack.cik}; recentFilings=${secEvidencePack.recentFilings.length}; fiscalFacts=${secEvidencePack.fiscalFacts.length}; asOf=${secEvidencePack.asOf || now}.`,
+    );
+  }
+
+  if (!notes.length) {
+    notes.push(
+      "LLM Demo / No Live Data: 当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
+    );
+  }
+
+  notes.push("当前未接入实时股价、一致预期或数据库保存，不能标记为验证级真实数据。");
+
+  return notes.join(" ");
+}
+
+function sanitizeUserVisibleBoundaryText(text: string) {
+  return text.replaceAll("verified-real-data", "verification-grade real data");
 }
 
 function getDeepSeekUserError(error: unknown) {

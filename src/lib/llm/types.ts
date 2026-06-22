@@ -1,5 +1,5 @@
 import type { BriefDocument, BriefLanguage } from "@/types/brief";
-import type { EvidencePack } from "@/types/evidence";
+import type { EvidencePack, SecEvidencePack } from "@/types/evidence";
 
 export type DeepSeekModelMode = "chat" | "reasoner";
 
@@ -11,7 +11,9 @@ export type GenerateBriefInput = {
   modelMode?: DeepSeekModelMode;
   model?: string;
   useSearch?: boolean;
+  useSec?: boolean;
   evidencePack?: EvidencePack;
+  secEvidencePack?: SecEvidencePack;
 };
 
 export type GenerateBriefProvider = "mock" | "deepseek";
@@ -29,4 +31,8 @@ export type GenerateBriefResult = {
   searchProvider?: EvidencePack["searchProvider"];
   searchIsFallback?: boolean;
   searchWarnings?: string[];
+  secProvider?: SecEvidencePack["provider"];
+  secIsFallback?: boolean;
+  secWarnings?: string[];
+  cik?: string;
 };

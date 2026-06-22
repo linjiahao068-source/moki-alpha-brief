@@ -75,6 +75,10 @@ Search evidence:
 - `docs/V0_1_SEARCH_EVIDENCE_MVP.md`
 - `docs/V0_1_SEARCH_EVIDENCE_QA.md`
 
+SEC evidence:
+
+- `docs/V0_1_SEC_EVIDENCE_MVP.md`
+
 Mobile QA:
 
 - `docs/V0_1_MOBILE_QA_REPORT.md`

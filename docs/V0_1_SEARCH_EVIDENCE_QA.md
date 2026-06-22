@@ -129,3 +129,11 @@ Phase 9.2 建议进入 SEC 官方数据 MVP：
 ## 安全边界
 
 当前 Search Evidence QA 仍然不构成投资建议。搜索摘要不能被当成完整事实验证，low confidence 来源不能被当作 verified fact，页面也不能显示 `verified-real-data`。
+
+## Phase 9.2 SEC Evidence Note
+
+Search Evidence QA remains focused on web search source quality. Phase 9.2 adds a separate `SecEvidencePack` so SEC facts and Tavily summaries are not mixed together.
+
+SEC facts are high-confidence official disclosure facts, but the overall page is still `evidence-draft`, not `verified-real-data`.
+
+See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.

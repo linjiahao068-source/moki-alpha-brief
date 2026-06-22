@@ -22,7 +22,7 @@ export function GeneratedBriefPreview({ brief }: GeneratedBriefPreviewProps) {
             Data: {brief.metadata.dataMode}
           </span>
           <span className="rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1 text-[var(--foreground)] opacity-75">
-            Evidence Pack: {brief.evidencePack ? "Attached" : "None / No Live Data"}
+            Evidence: {getEvidenceLabel(brief)}
           </span>
         </div>
       </div>
@@ -31,4 +31,14 @@ export function GeneratedBriefPreview({ brief }: GeneratedBriefPreviewProps) {
       </div>
     </section>
   );
+}
+
+function getEvidenceLabel(brief: BriefDocument) {
+  const hasSearch = Boolean(brief.evidencePack);
+  const hasSec = Boolean(brief.secEvidencePack);
+
+  if (hasSearch && hasSec) return "Search + SEC Evidence Draft";
+  if (hasSec) return "SEC Evidence Draft";
+  if (hasSearch) return "Search Evidence Draft";
+  return "None / No Live Data";
 }

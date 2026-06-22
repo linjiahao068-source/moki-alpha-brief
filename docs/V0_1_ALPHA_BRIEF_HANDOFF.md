@@ -517,3 +517,18 @@ Added source quality control for Search Evidence Draft:
 - `/generate` Source Evidence panel displays High / Medium / Low counts, evidence warnings, domain, confidence, and `Published` vs `Retrieved only` dates.
 - Prompt, `validateBriefDocument`, and `assessBriefQuality` now understand evidence source confidence and Search Evidence Draft quality warnings.
 - New doc: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.
+
+### Phase 9.2: SEC Evidence MVP
+
+Status: completed in this iteration.
+
+Added SEC EDGAR JSON evidence support:
+
+- `src/lib/sec/*` for SEC config, CIK mapping, SEC fetch client, real/mock SEC providers, companyfacts extraction, and compact prompt payloads.
+- `POST /api/sec-evidence` returns `SecEvidencePack` with CIK, recent filings, fiscal facts, sources, and warnings.
+- `POST /api/generate-brief` supports `useSec=true` and can combine Search Evidence Draft with SEC Evidence Draft.
+- `/generate` adds `Use SEC official data` and a `SecEvidencePanel`.
+- `BriefDocument` can now carry `secEvidencePack` separately from search `evidencePack`.
+- `metadata.dataMode` remains `evidence-draft`; `verified-real-data` remains forbidden.
+
+Full handoff: `docs/V0_1_SEC_EVIDENCE_MVP.md`.

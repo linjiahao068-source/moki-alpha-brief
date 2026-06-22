@@ -370,3 +370,21 @@ Phase 8 已经新增 LLM / DeepSeek 生成闭环 MVP，当前流程是：
 - 不要删除 `Sample / Mock`、`LLM Demo` 或 `No Live Data` 状态。
 - 不要删除免责声明。
 - 不要把当前 mock 目标价、评级、回报写成真实投资建议。
+
+## Phase 9.2 SEC Evidence Extension
+
+`BriefDocument` now supports an optional `secEvidencePack` alongside search `evidencePack`.
+
+SEC evidence includes:
+
+- `ticker`
+- `cik`
+- `provider`
+- `recentFilings`
+- `fiscalFacts`
+- `sources`
+- `warnings`
+
+`secEvidencePack.dataMode` remains `evidence-draft`. SEC companyfacts are official disclosure data, but the current extraction layer is still MVP and must not be presented as `verified-real-data`.
+
+See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.

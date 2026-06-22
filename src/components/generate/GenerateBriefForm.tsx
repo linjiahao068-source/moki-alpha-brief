@@ -5,6 +5,7 @@ import type { BriefDocument } from "@/types/brief";
 import type { DeepSeekModelMode } from "@/lib/llm/types";
 import { DataBoundaryNote } from "@/components/brief/DataBoundaryNote";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
+import { SecEvidencePanel } from "./SecEvidencePanel";
 import { SourceEvidenceList } from "./SourceEvidenceList";
 
 type GenerateApiResult = {
@@ -20,6 +21,10 @@ type GenerateApiResult = {
   searchProvider?: "mock" | "tavily";
   searchIsFallback?: boolean;
   searchWarnings?: string[];
+  secProvider?: "mock" | "sec";
+  secIsFallback?: boolean;
+  secWarnings?: string[];
+  cik?: string;
 };
 
 export function GenerateBriefForm() {
@@ -27,6 +32,7 @@ export function GenerateBriefForm() {
   const [companyName, setCompanyName] = useState("NVIDIA");
   const [modelMode, setModelMode] = useState<DeepSeekModelMode>("chat");
   const [useSearch, setUseSearch] = useState(false);
+  const [useSec, setUseSec] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +49,15 @@ export function GenerateBriefForm() {
     () => (result?.searchWarnings || []).filter(Boolean),
     [result],
   );
+  const secWarningList = useMemo(
+    () => (result?.secWarnings || []).filter(Boolean),
+    [result],
+  );
   const evidenceStats = useMemo(
     () => getEvidenceStats(result?.brief),
     [result],
   );
+  const secStats = useMemo(() => getSecStats(result?.brief), [result]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +77,7 @@ export function GenerateBriefForm() {
           language: "zh-CN",
           modelMode,
           useSearch,
+          useSec,
         }),
       });
       const payload = (await response.json()) as GenerateApiResult;
@@ -154,6 +166,23 @@ export function GenerateBriefForm() {
           </span>
         </label>
 
+        <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
+          <input
+            type="checkbox"
+            checked={useSec}
+            onChange={(event) => setUseSec(event.target.checked)}
+            className="mt-1 size-4 accent-[var(--brand-hover)]"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold leading-6 text-[var(--foreground)]">
+              Use SEC official data
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-[var(--foreground)] opacity-75">
+              Fetch SEC EDGAR companyfacts and submissions metadata for an SEC Evidence Draft. This does not include real-time price, consensus estimates, a database, or saved share pages.
+            </span>
+          </span>
+        </label>
+
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
           当前为 LLM Demo / Mock Demo / Search Evidence Draft，未接入 SEC、实时股价、一致预期或数据库，不构成投资建议。
         </div>
@@ -210,9 +239,7 @@ export function GenerateBriefForm() {
             <StatusItem
               label="Evidence"
               value={
-                result.brief?.evidencePack
-                  ? "Search Evidence Draft"
-                  : "None / No Live Data"
+                getEvidenceLabel(result.brief)
               }
               mono
             />
@@ -234,6 +261,26 @@ export function GenerateBriefForm() {
             <StatusItem
               label="Evidence Warnings"
               value={String(evidenceStats.warningCount)}
+              mono
+            />
+            <StatusItem
+              label="SEC Provider"
+              value={result.secProvider || "n/a"}
+              mono
+            />
+            <StatusItem
+              label="CIK"
+              value={result.cik || result.brief?.secEvidencePack?.cik || "n/a"}
+              mono
+            />
+            <StatusItem
+              label="Recent Filings"
+              value={String(secStats.recentFilings)}
+              mono
+            />
+            <StatusItem
+              label="Fiscal Facts"
+              value={String(secStats.fiscalFacts)}
               mono
             />
           </div>
@@ -291,6 +338,18 @@ export function GenerateBriefForm() {
               </ul>
             </div>
           ) : null}
+          {secWarningList.length ? (
+            <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                SEC Warnings
+              </p>
+              <ul className="mt-2 space-y-2 text-sm leading-6 text-[var(--foreground)] opacity-80">
+                {secWarningList.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -300,6 +359,13 @@ export function GenerateBriefForm() {
         <SourceEvidenceList
           evidencePack={result.brief.evidencePack}
           warnings={searchWarningList}
+        />
+      ) : null}
+
+      {result?.brief?.secEvidencePack ? (
+        <SecEvidencePanel
+          secEvidencePack={result.brief.secEvidencePack}
+          warnings={secWarningList}
         />
       ) : null}
 
@@ -395,4 +461,22 @@ function getEvidenceStats(brief?: BriefDocument) {
       warningCount: warnings.length,
     },
   );
+}
+
+function getSecStats(brief?: BriefDocument) {
+  return {
+    recentFilings: brief?.secEvidencePack?.recentFilings.length || 0,
+    fiscalFacts: brief?.secEvidencePack?.fiscalFacts.length || 0,
+    warningCount: brief?.secEvidencePack?.warnings?.length || 0,
+  };
+}
+
+function getEvidenceLabel(brief?: BriefDocument) {
+  const hasSearch = Boolean(brief?.evidencePack);
+  const hasSec = Boolean(brief?.secEvidencePack);
+
+  if (hasSearch && hasSec) return "Search + SEC Evidence Draft";
+  if (hasSec) return "SEC Evidence Draft";
+  if (hasSearch) return "Search Evidence Draft";
+  return "None / No Live Data";
 }

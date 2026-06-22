@@ -208,6 +208,22 @@ export const briefJsonSchema = {
         warnings: { type: "array", items: { type: "string" } },
       },
     },
+    secEvidencePack: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        asOf: { type: "string" },
+        ticker: { type: "string" },
+        cik: { type: "string" },
+        companyName: { type: "string" },
+        provider: { enum: ["mock", "sec"] },
+        dataMode: { const: "evidence-draft" },
+        fiscalFacts: { type: "array" },
+        recentFilings: { type: "array" },
+        sources: { type: "array" },
+        warnings: { type: "array", items: { type: "string" } },
+      },
+    },
     sourceNote: {
       type: "object",
       additionalProperties: true,

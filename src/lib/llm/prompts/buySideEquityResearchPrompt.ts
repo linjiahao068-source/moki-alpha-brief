@@ -1,5 +1,6 @@
-import { briefJsonSchemaText } from "@/lib/briefs/briefJsonSchema";
-import type { EvidencePack } from "@/types/evidence";
+﻿import { briefJsonSchemaText } from "@/lib/briefs/briefJsonSchema";
+import { compactSecEvidenceForPrompt } from "@/lib/sec/compactSecEvidenceForPrompt";
+import type { EvidencePack, SecEvidencePack } from "@/types/evidence";
 import type { GenerateBriefInput } from "../types";
 
 type PromptBundle = {
@@ -11,6 +12,7 @@ export function buildBuySideEquityResearchPrompt(
   input: GenerateBriefInput,
 ): PromptBundle {
   const evidencePack = input.evidencePack;
+  const secEvidencePack = input.secEvidencePack;
   const modelMode = input.modelMode || "chat";
 
   return {
@@ -29,9 +31,10 @@ export function buildBuySideEquityResearchPrompt(
       buildSectionInstructions(),
       buildScenarioInstructions(),
       buildMonitoringInstructions(),
-      buildDataBoundaryInstructions(evidencePack),
+      buildDataBoundaryInstructions(evidencePack, secEvidencePack),
       buildModeInstructions(modelMode),
       buildEvidenceInstructions(evidencePack),
+      buildSecEvidenceInstructions(secEvidencePack),
       buildSchemaInstructions(),
     ].join("\n\n"),
   };
@@ -60,7 +63,7 @@ function buildMokiStyleGuide() {
     "- Write like a public-facing buy-side memo, not a blog post, marketing page, brokerage trading page, or generic explainer.",
     "- Lead with conclusions. Every section should have a clear research job.",
     "- Use calm, professional, Chinese-friendly language. Avoid hype, slogans, and sales copy.",
-    "- Do not write phrases such as '作为 AI 模型', '我无法', '以下是', or any conversational framing.",
+    "- Do not write phrases such as '浣滀负 AI 妯″瀷', '鎴戞棤娉?, '浠ヤ笅鏄?, or any conversational framing.",
     "- Keep paragraphs short: usually 2-4 sentences. Use bulletList for key points and callout for central judgment or debate.",
     "- Preserve useful English terms such as Executive View, Variant Perception, Bull/Base/Bear, Monitoring Dashboard, and Bottom Line.",
     "- The brief should feel like a structured investment committee memo, while remaining clearly labeled as LLM Demo / No Live Data.",
@@ -75,7 +78,7 @@ function buildSectionInstructions() {
     "2. company-snapshot / kind company-snapshot: Explain business structure and segment logic without inventing current revenue, EPS, margins, or market cap.",
     "3. industry-chain-position / kind industry-chain: Explain upstream, downstream, value capture, bottlenecks, and profit pool position.",
     "4. competitive-landscape / kind competitive-landscape: Explain competitors, moat, switching costs, substitution risks, and ecosystem position.",
-    "5. financial-deep-dive / kind financial-deep-dive: Without evidencePack, write an analysis framework and待核查 indicators only. Do not fabricate real financial statement facts.",
+    "5. financial-deep-dive / kind financial-deep-dive: Without evidencePack, write an analysis framework and寰呮牳鏌?indicators only. Do not fabricate real financial statement facts.",
     "6. key-value-drivers / kind value-drivers: Explain what truly drives valuation and share price perception, using simulated/example wording for numbers.",
     "7. valuation / kind valuation: Provide a scenario valuation framework, not a real target price commitment.",
     "8. variant-perception / kind variant-perception: Explain what the market could be over- or under-estimating.",
@@ -93,8 +96,8 @@ function buildScenarioInstructions() {
     "- Include exactly or at least three scenarios: Bull Case, Base Case, Bear Case.",
     "- Probabilities should be plausible and together close to 100%.",
     "- Base Case should be the most neutral and credible path.",
-    "- keyAssumptions must be concrete, but any numbers must be marked 模拟, 示例, 待核查, or N/A.",
-    "- targetPrice and impliedReturn must not read like a real investment recommendation. Use labels such as '模拟目标价', '示例区间', or 'N/A - 待接入真实数据'.",
+    "- keyAssumptions must be concrete, but any numbers must be marked 妯℃嫙, 绀轰緥, 寰呮牳鏌? or N/A.",
+    "- targetPrice and impliedReturn must not read like a real investment recommendation. Use labels such as '妯℃嫙鐩爣浠?, '绀轰緥鍖洪棿', or 'N/A - 寰呮帴鍏ョ湡瀹炴暟鎹?.",
     "- Each scenario should have a trigger or observable condition when possible.",
   ].join("\n");
 }
@@ -105,39 +108,52 @@ function buildMonitoringInstructions() {
     "- monitoringDashboard.id must be 'monitoring-dashboard'.",
     "- Include at least 6 metrics.",
     "- Each metric must have metric, whyItMatters, and threshold.",
-    "- Thresholds should be observable. If no real data exists, write '待接入数据后跟踪', '示例阈值', or 'N/A - 待核查'.",
+    "- Thresholds should be observable. If no real data exists, write '寰呮帴鍏ユ暟鎹悗璺熻釜', '绀轰緥闃堝€?, or 'N/A - 寰呮牳鏌?.",
     "- The dashboard should feel like an investment tracking checklist, not a complex trading terminal.",
   ].join("\n");
 }
 
-function buildDataBoundaryInstructions(evidencePack?: EvidencePack) {
+function buildDataBoundaryInstructions(
+  evidencePack?: EvidencePack,
+  secEvidencePack?: SecEvidencePack,
+) {
   const hasEvidencePack = Boolean(evidencePack);
+  const hasSecEvidence = Boolean(secEvidencePack);
+  const hasAnyEvidence = hasEvidencePack || hasSecEvidence;
+  const evidenceLabel =
+    hasEvidencePack && hasSecEvidence
+      ? "Search + SEC Evidence Draft"
+      : hasSecEvidence
+        ? "SEC Evidence Draft"
+        : "Search Evidence Draft";
 
   return [
     "## Data Boundary Rules",
-    hasEvidencePack
-      ? "- An evidencePack is supplied as a Search Evidence Draft. Only facts explicitly present in evidencePack.newsItems or evidencePack.sources may be stated as search-backed."
-      : "- There is no evidencePack in this request.",
-    hasEvidencePack
-      ? '- Because this is Phase 9.1 search evidence only, metadata.dataMode must be "evidence-draft". Never use "verified-real-data".'
-      : '- Because no evidencePack exists, metadata.dataMode must be "llm-demo-no-live-data".',
+    hasAnyEvidence
+      ? "- Evidence draft context is supplied. Only facts explicitly present in the supplied evidence packs may be stated as evidence-backed."
+      : "- No evidence pack is supplied in this request.",
+    hasAnyEvidence
+      ? '- Because this is an evidence draft MVP, metadata.dataMode must be "evidence-draft". Never use "verified-real-data".'
+      : '- Because no evidence pack exists, metadata.dataMode must be "llm-demo-no-live-data".',
     '- metadata.isMock must remain true and metadata.frameworkStatus must be "mock-reference-only" for this phase.',
-    hasEvidencePack
-      ? "- hero.badges must include Search Evidence Draft."
+    hasAnyEvidence
+      ? `- hero.badges must include ${evidenceLabel}.`
       : "- hero.badges must include LLM Demo / No Live Data.",
-    hasEvidencePack
-      ? "- sourceNote must clearly say: 当前为 Search Evidence Draft，只接入公开网页搜索证据草稿，未接入 SEC、实时股价、一致预期或数据库；include searchProvider, retrievedAt/asOf, and source count."
-      : "- sourceNote must clearly say: 当前为 LLM Demo / No Live Data，未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
+    hasAnyEvidence
+      ? "- sourceNote must clearly say this is an evidence draft, not verified-real-data. If SEC evidence exists, include SEC provider, CIK, recent filing count, and fiscal fact count. If search evidence exists, include searchProvider, retrievedAt/asOf, and source count. Always say there is no real-time price, consensus, or database save."
+      : "- sourceNote must clearly say this is an LLM Demo / No Live Data result, with no SEC, IR, real-time price, consensus, or news retrieval connected.",
     "- disclaimer.text must clearly say: 本页面仅供研究和信息参考，不构成投资建议。",
-    hasEvidencePack
-      ? "- Do not claim access to SEC filings, company IR, real-time price, consensus estimates, paid terminals, or live market data. Only call the supplied evidencePack a search evidence draft."
-      : "- Do not claim access to SEC filings, company IR, real-time price, consensus estimates, news search, paid terminals, or live market data.",
+    hasSecEvidence
+      ? "- SEC companyfacts/submissions are supplied as SEC Evidence Draft. You may refer to SEC facts only from secEvidencePack, but still do not claim real-time price, consensus estimates, paid terminals, database storage, or verified-real-data."
+      : hasEvidencePack
+        ? "- Do not claim access to SEC filings, company IR, real-time price, consensus estimates, paid terminals, or live market data. Only call the supplied evidencePack a search evidence draft."
+        : "- Do not claim access to SEC filings, company IR, real-time price, consensus estimates, news search, paid terminals, or live market data.",
     hasEvidencePack
       ? "- You may discuss Recent Developments, Catalysts, Risks, and Variant Perception only when the statement can be traced to evidencePack items. Do not derive real financial metrics from search snippets."
       : "- Do not make recent-news or real-time statements.",
-    "- Forbidden wording includes: 根据最新财报, 根据实时行情, 根据 SEC 文件, 市场一致预期显示, 已核验来源, 实时数据表明.",
+    "- Forbidden wording includes: 根据最新财报, 根据实时行情, 根据 SEC 文件, 市场一致预期显示, 已核验来源, 实时数据显示.",
     "- Do not fabricate citations, URLs, SEC accession numbers, source ids, news links, or publisher names.",
-    "- Any financial number, valuation multiple, target price, implied return, market share, revenue split, EPS, margin, capex, or market cap must be labeled 模拟, 示例, 待核查, or N/A.",
+    "- Any financial number, valuation multiple, target price, implied return, market share, revenue split, EPS, margin, capex, or market cap must be labeled 模拟, 示例, 待核查, search-summary-mentioned, SEC companyfacts, or N/A.",
   ].join("\n");
 }
 
@@ -165,7 +181,7 @@ function buildEvidenceInstructions(evidencePack?: EvidencePack) {
     return [
       "## Evidence Pack Injection Point",
       "No evidencePack is supplied.",
-      "Therefore all factual-sounding claims must be framed as research framework, hypothesis, demo interpretation, or待核查 item.",
+      "Therefore all factual-sounding claims must be framed as research framework, hypothesis, demo interpretation, or寰呮牳鏌?item.",
       "Do not assume recent web search exists.",
     ].join("\n");
   }
@@ -186,6 +202,31 @@ function buildEvidenceInstructions(evidencePack?: EvidencePack) {
     "Set metadata.dataMode to evidence-draft and keep isMock true.",
     "EvidencePack summary for this request:",
     JSON.stringify(summarizeEvidencePack(evidencePack), null, 2),
+  ].join("\n");
+}
+
+function buildSecEvidenceInstructions(secEvidencePack?: SecEvidencePack) {
+  if (!secEvidencePack) {
+    return [
+      "## SEC Evidence Injection Point",
+      "No secEvidencePack is supplied.",
+      "Do not claim that SEC companyfacts, submissions, 10-K, 10-Q, or 8-K data has been used.",
+    ].join("\n");
+  }
+
+  return [
+    "## SEC Evidence Injection Point",
+    "Use only the supplied secEvidencePack for SEC-backed financial facts.",
+    "Financial Statement Deep Dive must prioritize secEvidencePack.fiscalFacts.",
+    "Company Snapshot may reference secEvidencePack.recentFilings metadata.",
+    "Key Value Drivers may combine SEC facts with search evidence only when the source type is clearly separated.",
+    "Valuation must still avoid real target-price promises because there is no real-time price or consensus data.",
+    "If EPS, Revenue, Net Income, or any metric is missing, write that SEC companyfacts extraction did not extract that metric; do not invent it.",
+    "Every financial fact must be described as sourced from SEC companyfacts.",
+    "Never convert Tavily/search snippets into SEC fiscalFacts.",
+    "Never claim real-time stock price, consensus estimates, or verified-real-data.",
+    "SEC evidence summary for this request:",
+    JSON.stringify(compactSecEvidenceForPrompt(secEvidencePack), null, 2),
   ].join("\n");
 }
 

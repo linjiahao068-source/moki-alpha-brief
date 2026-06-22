@@ -10,7 +10,10 @@ export async function mockProvider(
   const companyName = input.companyName?.trim() || getMockCompanyName(ticker);
   const now = formatCstTimestamp();
   const evidencePack = input.evidencePack;
+  const secEvidencePack = input.secEvidencePack;
   const hasEvidencePack = Boolean(evidencePack);
+  const hasSecEvidence = Boolean(secEvidencePack);
+  const hasAnyEvidence = hasEvidencePack || hasSecEvidence;
 
   const baseBrief = cloneBrief(nvdaBrief);
   const brief =
@@ -30,21 +33,29 @@ export async function mockProvider(
     generatedAt: now,
     updatedAt: now,
     frameworkStatus: "mock-reference-only",
-    dataMode: hasEvidencePack ? "evidence-draft" : "mock",
+    dataMode: hasAnyEvidence ? "evidence-draft" : "mock",
     brand: "Moki",
     product: "Moki Alpha Brief",
-    shareLabel: hasEvidencePack
-      ? "Search Evidence Draft"
+    shareLabel: hasAnyEvidence
+      ? getEvidenceLabel(hasEvidencePack, hasSecEvidence)
       : "LLM Demo Preview",
   };
   brief.hero = {
     ...brief.hero,
     headline: ticker,
     subheadline: companyName,
-    badges: hasEvidencePack
+    badges: hasAnyEvidence
       ? [
-          { label: "Search Evidence Draft", tone: "brand" },
-          { label: "Mock Search Evidence", tone: "neutral" },
+          {
+            label: getEvidenceLabel(hasEvidencePack, hasSecEvidence),
+            tone: "brand",
+          },
+          {
+            label: secEvidencePack?.provider === "mock"
+              ? "Mock SEC Evidence"
+              : "Evidence Draft",
+            tone: "neutral",
+          },
         ]
       : [
           { label: "LLM Demo Preview", tone: "brand" },
@@ -61,10 +72,10 @@ export async function mockProvider(
   };
   brief.sourceNote = {
     ...brief.sourceNote,
-    paragraphs: hasEvidencePack
+    paragraphs: hasAnyEvidence
       ? [
-          `Search Evidence Draft: this mock provider result includes an evidencePack from ${evidencePack?.searchProvider || "mock"} with ${evidencePack?.newsItems?.length || 0} source item(s), retrieved at ${evidencePack?.asOf || now}.`,
-          "当前仅接入搜索证据草稿，未接 SEC、实时股价、一致预期或数据库；所有财务数字、目标价和收益判断仍为模拟 / 示例 / 待核查。",
+          buildMockEvidenceSourceNote({ evidencePack, secEvidencePack, now }),
+          "当前为 Evidence Draft，未接实时股价、一致预期或数据库；所有目标价、收益判断和估值结论仍为模拟 / 示例 / 待核查。",
         ]
       : [
           "当前结果由 mock provider 生成，用于验证 LLM 生成闭环与 BriefDocument 渲染，不代表真实研究结论。",
@@ -76,6 +87,7 @@ export async function mockProvider(
     text: "本页面仅供研究和信息参考，不构成投资建议。当前生成结果为 Mock / LLM Demo / Search Evidence Draft，不代表实时行情、正式评级或任何个性化建议。",
   };
   brief.evidencePack = evidencePack;
+  brief.secEvidencePack = secEvidencePack;
 
   const issues = validateBriefDocument(brief);
 
@@ -93,6 +105,41 @@ export async function mockProvider(
 
 function inferModelMode(model: string | undefined) {
   return model === "deepseek-reasoner" ? "reasoner" : "chat";
+}
+
+function getEvidenceLabel(hasSearchEvidence: boolean, hasSecEvidence: boolean) {
+  if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
+  if (hasSecEvidence) return "SEC Evidence Draft";
+  if (hasSearchEvidence) return "Search Evidence Draft";
+  return "LLM Demo Preview";
+}
+
+function buildMockEvidenceSourceNote({
+  evidencePack,
+  secEvidencePack,
+  now,
+}: {
+  evidencePack: GenerateBriefInput["evidencePack"];
+  secEvidencePack: GenerateBriefInput["secEvidencePack"];
+  now: string;
+}) {
+  const parts: string[] = [];
+
+  if (evidencePack) {
+    parts.push(
+      `Search Evidence Draft: provider=${evidencePack.searchProvider || "mock"}; sourceCount=${evidencePack.newsItems?.length || evidencePack.sources.length || 0}; retrievedAt=${evidencePack.asOf || now}.`,
+    );
+  }
+
+  if (secEvidencePack) {
+    parts.push(
+      `SEC Evidence Draft: provider=${secEvidencePack.provider}; CIK=${secEvidencePack.cik}; recentFilings=${secEvidencePack.recentFilings.length}; fiscalFacts=${secEvidencePack.fiscalFacts.length}; asOf=${secEvidencePack.asOf || now}.`,
+    );
+  }
+
+  parts.push("This is not verification-grade real data and does not include real-time price or consensus estimates.");
+
+  return parts.join(" ");
 }
 
 function normalizeTicker(ticker: string) {

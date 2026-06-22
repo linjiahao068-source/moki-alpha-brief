@@ -10,22 +10,14 @@ const allowedDataModes = new Set([
 export function validateBriefDocument(brief: BriefDocument): string[] {
   const issues: string[] = [];
 
-  if (brief.schemaVersion !== "0.1") {
-    issues.push("schemaVersion must be 0.1");
-  }
-
+  if (brief.schemaVersion !== "0.1") issues.push("schemaVersion must be 0.1");
   if (!brief.slug) issues.push("slug is required");
   if (!brief.metadata?.ticker) issues.push("metadata.ticker is required");
-  if (!brief.metadata?.companyName) {
-    issues.push("metadata.companyName is required");
-  }
+  if (!brief.metadata?.companyName) issues.push("metadata.companyName is required");
   if (!brief.metadata?.title) issues.push("metadata.title is required");
-  if (!brief.metadata?.generatedAt) {
-    issues.push("metadata.generatedAt is required");
-  }
-  if (!brief.metadata?.updatedAt) {
-    issues.push("metadata.updatedAt is required");
-  }
+  if (!brief.metadata?.generatedAt) issues.push("metadata.generatedAt is required");
+  if (!brief.metadata?.updatedAt) issues.push("metadata.updatedAt is required");
+
   if (!brief.metadata?.dataMode) {
     issues.push("metadata.dataMode is required");
   } else if (!allowedDataModes.has(brief.metadata.dataMode)) {
@@ -33,52 +25,90 @@ export function validateBriefDocument(brief: BriefDocument): string[] {
   }
 
   if (
-    (brief.metadata?.dataMode === "verified-real-data" ||
-      brief.metadata?.dataMode === "evidence-draft") &&
-    !brief.evidencePack
+    brief.metadata?.dataMode === "evidence-draft" &&
+    !brief.evidencePack &&
+    !brief.secEvidencePack
   ) {
-    issues.push(
-      `${brief.metadata.dataMode} requires evidencePack before it can be displayed.`,
-    );
-  }
-
-  if (!brief.evidencePack && brief.metadata?.dataMode === "verified-real-data") {
-    issues.push("verified-real-data cannot be used without evidencePack");
+    issues.push("evidence-draft requires evidencePack or secEvidencePack");
   }
 
   if (brief.metadata?.dataMode === "verified-real-data") {
-    issues.push("verified-real-data is not supported in the current MVP");
+    issues.push("verified real-data mode is not supported in the current MVP");
   }
 
-  if (
-    brief.metadata?.dataMode === "evidence-draft" &&
-    !brief.evidencePack?.newsItems?.length
-  ) {
+  validateSearchEvidence(brief, issues);
+  validateSecEvidence(brief, issues);
+  validateCoreContent(brief, issues);
+  validateDataBoundaryClaims(brief, issues);
+
+  return issues;
+}
+
+function validateSearchEvidence(brief: BriefDocument, issues: string[]) {
+  if (brief.metadata?.dataMode !== "evidence-draft" || !brief.evidencePack) {
+    return;
+  }
+
+  if (brief.evidencePack.dataMode !== "evidence-draft") {
+    issues.push("evidencePack.dataMode must be evidence-draft");
+  }
+
+  if (!brief.evidencePack.newsItems?.length) {
     issues.push("evidence-draft requires evidencePack.newsItems");
   }
 
-  if (brief.metadata?.dataMode === "evidence-draft" && brief.evidencePack) {
-    if (brief.evidencePack.dataMode !== "evidence-draft") {
-      issues.push("evidencePack.dataMode must be evidence-draft");
+  if (!brief.evidencePack.sources?.length) {
+    issues.push("evidence-draft requires evidencePack.sources");
+  }
+
+  for (const source of brief.evidencePack.sources || []) {
+    if (!source.confidence) {
+      issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is required`);
+    } else if (!["high", "medium", "low"].includes(source.confidence)) {
+      issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is invalid`);
     }
 
-    if (!brief.evidencePack.sources?.length) {
-      issues.push("evidence-draft requires evidencePack.sources");
-    }
-
-    for (const source of brief.evidencePack.sources || []) {
-      if (!source.confidence) {
-        issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is required`);
-      } else if (!["high", "medium", "low"].includes(source.confidence)) {
-        issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is invalid`);
-      }
-
-      if (!source.retrievedAt) {
-        issues.push(`EvidenceSource ${source.id || "(unknown)"} retrievedAt is required`);
-      }
+    if (!source.retrievedAt) {
+      issues.push(`EvidenceSource ${source.id || "(unknown)"} retrievedAt is required`);
     }
   }
 
+  if (!hasSearchEvidenceSourceNote(brief)) {
+    issues.push("evidence-draft sourceNote must mention search evidence");
+  }
+}
+
+function validateSecEvidence(brief: BriefDocument, issues: string[]) {
+  if (brief.metadata?.dataMode !== "evidence-draft" || !brief.secEvidencePack) {
+    return;
+  }
+
+  if (brief.secEvidencePack.dataMode !== "evidence-draft") {
+    issues.push("secEvidencePack.dataMode must be evidence-draft");
+  }
+
+  if (!brief.secEvidencePack.cik) {
+    issues.push("secEvidencePack.cik is required");
+  }
+
+  for (const fact of brief.secEvidencePack.fiscalFacts || []) {
+    if (!fact.unit) {
+      issues.push(`SEC fiscal fact ${fact.concept || "(unknown)"} unit is required`);
+    }
+    if (!fact.form) {
+      issues.push(`SEC fiscal fact ${fact.concept || "(unknown)"} form is required`);
+    }
+    if (!fact.filed) {
+      issues.push(`SEC fiscal fact ${fact.concept || "(unknown)"} filed is required`);
+    }
+  }
+
+  if (!hasSecEvidenceSourceNote(brief)) {
+    issues.push("SEC evidence sourceNote must mention SEC Evidence Draft and CIK");
+  }
+}
+
+function validateCoreContent(brief: BriefDocument, issues: string[]) {
   if (!Array.isArray(brief.sections)) {
     issues.push("sections must be an array");
   } else {
@@ -96,9 +126,7 @@ export function validateBriefDocument(brief: BriefDocument): string[] {
         issues.push(`section ${section.id || "(unknown)"} kind is required`);
       }
       if (section.id) {
-        if (ids.has(section.id)) {
-          issues.push(`duplicate section id: ${section.id}`);
-        }
+        if (ids.has(section.id)) issues.push(`duplicate section id: ${section.id}`);
         ids.add(section.id);
       }
     }
@@ -116,47 +144,44 @@ export function validateBriefDocument(brief: BriefDocument): string[] {
     issues.push("sourceNote.paragraphs is required");
   }
 
-  if (
-    brief.metadata?.dataMode === "evidence-draft" &&
-    !hasSearchEvidenceSourceNote(brief)
-  ) {
-    issues.push("evidence-draft sourceNote must mention search evidence");
-  }
-
   if (!brief.disclaimer?.text) {
     issues.push("disclaimer.text is required");
   }
+}
 
-  if (
-    !brief.evidencePack &&
-    hasUnsupportedLiveDataClaim([
-      brief.metadata?.title,
-      brief.metadata?.briefType,
-      brief.metadata?.frameworkName,
-      brief.metadata?.shareLabel,
-      ...(brief.sourceNote?.paragraphs ?? []),
-    ])
-  ) {
+function validateDataBoundaryClaims(brief: BriefDocument, issues: string[]) {
+  const hasSearch = Boolean(brief.evidencePack);
+  const hasSec = Boolean(brief.secEvidencePack);
+  const claimText = collectClaimText(brief);
+
+  if (!hasSearch && !hasSec && hasPositiveClaim(claimText, liveDataPattern)) {
     issues.push(
-      "brief claims live SEC, IR, market price, consensus, or news data without evidencePack",
+      "brief appears to claim live data, SEC, IR, market price, consensus, or news access without evidence",
     );
   }
 
-  if (
-    brief.evidencePack?.searchProvider &&
-    hasUnsupportedVerifiedDataClaim(collectClaimText(brief))
-  ) {
-    issues.push(
-      "search evidence draft claims SEC, real-time price, consensus, or verified financial data",
-    );
+  if (hasSearch && !hasSec && hasPositiveClaim(claimText, secDataPattern)) {
+    issues.push("search-only evidence draft appears to claim SEC official data");
   }
 
-  return issues;
+  if (
+    (hasSearch || hasSec) &&
+    hasPositiveClaim(claimText, realTimeOrConsensusPattern)
+  ) {
+    issues.push(
+      "evidence draft appears to claim real-time price, consensus, or verification-grade data",
+    );
+  }
 }
 
 function hasSearchEvidenceSourceNote(brief: BriefDocument) {
   const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
-  return /search evidence|evidence draft|searchprovider|搜索证据|公开网页搜索/.test(
+  return /search evidence|searchprovider|search provider|evidence draft/.test(text);
+}
+
+function hasSecEvidenceSourceNote(brief: BriefDocument) {
+  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
+  return /sec evidence draft|sec provider|secprovider|cik|companyfacts|submissions/.test(
     text,
   );
 }
@@ -167,64 +192,37 @@ function collectClaimText(brief: BriefDocument) {
     brief.metadata?.briefType,
     brief.metadata?.frameworkName,
     brief.metadata?.shareLabel,
+    brief.hero?.subheadline,
     ...(brief.sourceNote?.paragraphs ?? []),
     brief.disclaimer?.text,
-  ];
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-function hasUnsupportedVerifiedDataClaim(values: Array<string | undefined>) {
-  const text = values.filter(Boolean).join("。");
-  const sentences = text
+const liveDataPattern =
+  /\b(sec|ir|real[- ]?time|market data|consensus|news search|latest filing|companyfacts|submissions)\b|实时|行情|股价|一致预期|新闻检索|最新财报|官方披露/i;
+
+const secDataPattern =
+  /\b(sec|companyfacts|submissions|10-k|10-q|cik)\b|官方披露|财报/i;
+
+const realTimeOrConsensusPattern =
+  /\b(real[- ]?time|live price|market data|consensus|verified real data|verification-grade|verified financial)\b|实时股价|实时行情|一致预期|已验证真实数据/i;
+
+const positiveVerbPattern =
+  /\b(using|uses|based on|according to|retrieved|fetched|verified|shows|indicates|connected|sourced from)\b|根据|基于|使用|接入|引用|来自|抓取|显示|表明|已验证/i;
+
+const negationPattern =
+  /\b(no|not|without|never|cannot|demo|draft|mock|sample|unverified|not connected|not supported)\b|未|没有|不|不可|不能|并未|仅为|模拟|示例|待核查|草稿|演示/i;
+
+function hasPositiveClaim(text: string, claimPattern: RegExp) {
+  return text
     .split(/[。.!?；;\n]/)
     .map((sentence) => sentence.trim())
-    .filter(Boolean);
-
-  return sentences.some((sentence) => {
-    const normalized = sentence.toLowerCase();
-    const isNegated =
-      /未接入|未接|没有接入|不接入|不接|未使用|不使用|不进行|不代表|不能视为|不是|no live data|demo|模拟|示例|待核查|not connected|without/.test(
-        normalized,
-      );
-
-    if (isNegated) return false;
-
-    return (
-      /(根据|使用|接入|引用|来自|检索|抓取|核验|according to|using|retrieved|fetched).{0,18}(sec|实时股价|实时行情|real-time price|real-time market|一致预期|consensus|最新财报|latest filing)/.test(
-        normalized,
-      ) ||
-      /(sec|实时股价|实时行情|real-time price|real-time market|一致预期|consensus|最新财报|latest filing).{0,18}(显示|表明|verified|已核验|shows|indicates)/.test(
-        normalized,
-      ) ||
-      /verified real data|verified financial/.test(normalized)
-    );
-  });
-}
-
-function hasUnsupportedLiveDataClaim(values: Array<string | undefined>) {
-  const text = values.filter(Boolean).join("。");
-  const sentences = text
-    .split(/[。.!?；;\n]/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-
-  return sentences.some((sentence) => {
-    const normalized = sentence.toLowerCase();
-    const mentionsLiveData =
-      /sec|ir|实时|real-time|股价|行情|一致预期|consensus|新闻检索|news search|最新财报|latest filing|market data/.test(
-        normalized,
-      );
-
-    if (!mentionsLiveData) return false;
-
-    const isNegated =
-      /未接入|未接|没有接入|不接入|不接|未使用|不使用|不进行|未连接|没有连接|未检索|不检索|不代表|不能视为|不是|no live data|demo|模拟|示例|not connected|not use|without/.test(
-        normalized,
-      );
-
-    if (isNegated) return false;
-
-    return /根据|基于|使用|接入|引用|来自|检索|抓取|核验|verified|based on|according to|using|retrieved|fetched/.test(
-      normalized,
-    );
-  });
+    .filter(Boolean)
+    .some((sentence) => {
+      if (!claimPattern.test(sentence)) return false;
+      if (negationPattern.test(sentence)) return false;
+      return positiveVerbPattern.test(sentence);
+    });
 }

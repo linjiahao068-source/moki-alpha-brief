@@ -4,12 +4,14 @@ type SourceNoteProps = {
   sourceNote: SourceNoteData;
   dataMode: BriefDataMode;
   hasEvidencePack: boolean;
+  hasSecEvidencePack?: boolean;
 };
 
 export function SourceNote({
   sourceNote,
   dataMode,
   hasEvidencePack,
+  hasSecEvidencePack = false,
 }: SourceNoteProps) {
   return (
     <section
@@ -21,7 +23,8 @@ export function SourceNote({
           {sourceNote.title}
         </p>
         <span className="inline-flex w-fit max-w-full rounded-full border border-[var(--border)] bg-white px-3 py-1 font-mono text-xs font-semibold leading-5 text-[var(--foreground)] opacity-75">
-          {dataMode} / {hasEvidencePack ? "evidence attached" : "no evidence"}
+          {dataMode} /{" "}
+          {getEvidenceLabel(hasEvidencePack, hasSecEvidencePack)}
         </span>
       </div>
       <div className="mt-3 space-y-3 text-[15px] leading-7 text-[var(--foreground)] opacity-85">
@@ -31,4 +34,11 @@ export function SourceNote({
       </div>
     </section>
   );
+}
+
+function getEvidenceLabel(hasSearch: boolean, hasSec: boolean) {
+  if (hasSearch && hasSec) return "search + sec evidence";
+  if (hasSec) return "sec evidence";
+  if (hasSearch) return "search evidence";
+  return "no evidence";
 }

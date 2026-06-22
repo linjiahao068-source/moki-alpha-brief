@@ -1,5 +1,6 @@
 import { assessBriefQuality } from "@/lib/briefs/assessBriefQuality";
 import { buildSearchEvidencePack } from "@/lib/search/buildSearchEvidencePack";
+import { buildSecEvidencePack } from "@/lib/sec/buildSecEvidencePack";
 import { getDeepSeekConfigIssue, getLlmConfig } from "./config";
 import { deepseekProvider } from "./providers/deepseekProvider";
 import { mockProvider } from "./providers/mockProvider";
@@ -42,36 +43,49 @@ async function prepareEvidenceInput(
   input: GenerateBriefInput;
   searchMeta: Partial<GenerateBriefResult>;
 }> {
-  if (!input.useSearch || input.evidencePack) {
+  if ((!input.useSearch || input.evidencePack) && (!input.useSec || input.secEvidencePack)) {
     return { input, searchMeta: {} };
   }
 
-  const searchResult = await buildSearchEvidencePack({
-    ticker: input.ticker,
-    companyName: input.companyName,
-    maxResults: 5,
-  });
-
-  if (!searchResult.evidencePack) {
-    return {
-      input,
-      searchMeta: {
-        searchProvider: searchResult.provider,
-        searchIsFallback: searchResult.isFallback,
-        searchWarnings: searchResult.warnings || [searchResult.error || ""],
-      },
-    };
-  }
+  const [searchResult, secResult] = await Promise.all([
+    input.useSearch && !input.evidencePack
+      ? buildSearchEvidencePack({
+          ticker: input.ticker,
+          companyName: input.companyName,
+          maxResults: 5,
+        })
+      : Promise.resolve(undefined),
+    input.useSec && !input.secEvidencePack
+      ? buildSecEvidencePack({
+          ticker: input.ticker,
+          companyName: input.companyName,
+        })
+      : Promise.resolve(undefined),
+  ]);
 
   return {
     input: {
       ...input,
-      evidencePack: searchResult.evidencePack,
+      evidencePack: input.evidencePack || searchResult?.evidencePack,
+      secEvidencePack: input.secEvidencePack || secResult?.secEvidencePack,
     },
     searchMeta: {
-      searchProvider: searchResult.provider,
-      searchIsFallback: searchResult.isFallback,
-      searchWarnings: searchResult.warnings || [],
+      ...(searchResult
+        ? {
+            searchProvider: searchResult.provider,
+            searchIsFallback: searchResult.isFallback,
+            searchWarnings:
+              searchResult.warnings || [searchResult.error || ""].filter(Boolean),
+          }
+        : {}),
+      ...(secResult
+        ? {
+            secProvider: secResult.provider,
+            secIsFallback: secResult.isFallback,
+            secWarnings: secResult.warnings || [secResult.error || ""].filter(Boolean),
+            cik: secResult.secEvidencePack?.cik,
+          }
+        : {}),
     },
   };
 }

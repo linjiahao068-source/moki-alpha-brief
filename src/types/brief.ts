@@ -1,4 +1,4 @@
-import type { EvidencePack } from "./evidence";
+import type { EvidencePack, SecEvidencePack } from "./evidence";
 
 export type BriefSchemaVersion = "0.1";
 
@@ -189,6 +189,7 @@ export type BriefDocument = {
   scenarioAnalysis: ScenarioAnalysisBlock;
   monitoringDashboard: MonitoringDashboardBlock;
   evidencePack?: EvidencePack;
+  secEvidencePack?: SecEvidencePack;
   sourceNote: SourceNoteData;
   disclaimer: DisclaimerData;
 };

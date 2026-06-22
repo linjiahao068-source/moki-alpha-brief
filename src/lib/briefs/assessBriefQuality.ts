@@ -147,6 +147,48 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
     }
   }
 
+  if (brief.secEvidencePack) {
+    if (brief.secEvidencePack.fiscalFacts.length < 3) {
+      warnings.push(
+        "Quality: secEvidencePack should include at least 3 fiscal facts.",
+      );
+    }
+
+    if (brief.secEvidencePack.recentFilings.length < 1) {
+      warnings.push(
+        "Quality: secEvidencePack should include at least 1 recent filing.",
+      );
+    }
+
+    if (!sourceNoteMentionsCik(brief)) {
+      warnings.push("Quality: sourceNote should mention SEC CIK.");
+    }
+
+    if (!financialDeepDiveMentionsSecFacts(brief)) {
+      warnings.push(
+        "Quality: Financial Deep Dive should reflect SEC companyfacts when secEvidencePack exists.",
+      );
+    }
+
+    if (!hasRevenueIncomeOrEps(brief)) {
+      warnings.push(
+        "Quality: SEC companyfacts extraction may need concept fallback improvements for Revenue / Net Income / EPS.",
+      );
+    }
+
+    if (usesSimulatedFinancialsWithSecFacts(brief)) {
+      warnings.push(
+        "Quality: brief still uses simulated financial wording even though SEC fiscal facts exist.",
+      );
+    }
+
+    if (valuationLooksLikeRealTargetWithoutMarketData(brief)) {
+      warnings.push(
+        "Quality: Valuation should avoid real target-price language without real-time price or consensus data.",
+      );
+    }
+  }
+
   return warnings;
 }
 
@@ -196,6 +238,11 @@ function sourceNoteMentionsSearchEvidenceDraft(brief: BriefDocument) {
   return /search evidence draft|evidence draft/.test(text);
 }
 
+function sourceNoteMentionsCik(brief: BriefDocument) {
+  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
+  return /\bcik\b|sec evidence draft|companyfacts/.test(text);
+}
+
 function sourceNoteStillSaysNoLiveData(brief: BriefDocument) {
   const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
   return /no live data|未接入新闻检索/.test(text) && !/search evidence|搜索证据/.test(text);
@@ -236,4 +283,44 @@ function treatsLowConfidenceAsStrongFact(brief: BriefDocument) {
   return /(reddit|forum|perplexity|stocktwits|x\.com|twitter|social media|aggregator).{0,80}(confirmed|proves|shows|indicates|verified|fact)/.test(
     text,
   );
+}
+
+function financialDeepDiveMentionsSecFacts(brief: BriefDocument) {
+  const section = findSection(brief, "financial-deep-dive");
+  if (!section) return false;
+  return sectionText(section).match(/sec|companyfacts|10-k|10-q|fiscal fact|filed|cik/i);
+}
+
+function hasRevenueIncomeOrEps(brief: BriefDocument) {
+  const labels = (brief.secEvidencePack?.fiscalFacts || [])
+    .map((fact) => `${fact.concept} ${fact.label}`.toLowerCase())
+    .join(" ");
+  return /revenue|revenues|salesrevenuenet|netincome|earningspershare|eps/.test(labels);
+}
+
+function usesSimulatedFinancialsWithSecFacts(brief: BriefDocument) {
+  if (!brief.secEvidencePack?.fiscalFacts.length) return false;
+  const text = brief.sections.map(sectionText).join(" ").toLowerCase();
+  return /(模拟|示例|mock|待核查).{0,30}(revenue|收入|eps|net income|净利润|margin|利润率)/i.test(
+    text,
+  );
+}
+
+function valuationLooksLikeRealTargetWithoutMarketData(brief: BriefDocument) {
+  const section = findSection(brief, "valuation");
+  if (!section) return false;
+  const text = sectionText(section).toLowerCase();
+  return /(target price|目标价|price target).{0,40}(\$|usd|美元|\d)/i.test(text) &&
+    !/(模拟|示例|n\/a|待核查|not a recommendation|非投资建议)/i.test(text);
+}
+
+function sectionText(section: NonNullable<ReturnType<typeof findSection>>) {
+  return section.blocks
+    .flatMap((block) => {
+      if ("content" in block) return [block.content];
+      if ("items" in block) return block.items;
+      if ("metrics" in block) return block.metrics.map((metric) => metric.value);
+      return [];
+    })
+    .join(" ");
 }

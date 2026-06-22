@@ -190,3 +190,9 @@ Phase 9.1.1 adds source quality control on top of the Search Evidence MVP:
 - Prompt rules ask DeepSeek to use high / medium confidence evidence for Catalysts and Key Risks, and to avoid strong conclusions from low-confidence sources.
 
 Full handoff: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.
+
+## Phase 9.2 SEC Evidence MVP
+
+Phase 9.2 adds a separate SEC Evidence Draft path using SEC EDGAR JSON endpoints. Search Evidence Pack remains available and can be combined with SEC Evidence Draft, but the two evidence types remain separate in data and prompt rules.
+
+See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
