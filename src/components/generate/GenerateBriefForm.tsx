@@ -43,6 +43,10 @@ export function GenerateBriefForm() {
     () => (result?.searchWarnings || []).filter(Boolean),
     [result],
   );
+  const evidenceStats = useMemo(
+    () => getEvidenceStats(result?.brief),
+    [result],
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -219,7 +223,17 @@ export function GenerateBriefForm() {
             />
             <StatusItem
               label="Sources"
-              value={String(result.brief?.evidencePack?.newsItems?.length || 0)}
+              value={String(evidenceStats.total)}
+              mono
+            />
+            <StatusItem
+              label="High / Medium / Low"
+              value={`${evidenceStats.high} / ${evidenceStats.medium} / ${evidenceStats.low}`}
+              mono
+            />
+            <StatusItem
+              label="Evidence Warnings"
+              value={String(evidenceStats.warningCount)}
               mono
             />
           </div>
@@ -360,5 +374,25 @@ function StatusItem({
         {value}
       </p>
     </div>
+  );
+}
+
+function getEvidenceStats(brief?: BriefDocument) {
+  const sources = brief?.evidencePack?.sources || [];
+  const warnings = brief?.evidencePack?.warnings || [];
+
+  return sources.reduce(
+    (acc, source) => {
+      acc.total += 1;
+      acc[source.confidence || "low"] += 1;
+      return acc;
+    },
+    {
+      total: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      warningCount: warnings.length,
+    },
   );
 }

@@ -2,14 +2,16 @@ import type {
   EvidenceNewsItem,
   EvidencePack,
   EvidenceQuery,
-  EvidenceQueryPurpose,
   EvidenceSource,
-  EvidenceSourceType,
   EvidenceTheme,
 } from "@/types/evidence";
 import { getSearchConfig, getSearchConfigIssue } from "./config";
 import { mockSearchProvider } from "./providers/mockSearchProvider";
 import { createTavilySearchProvider } from "./providers/tavilySearchProvider";
+import {
+  dedupeSearchResults,
+  filterAndRankSearchResults,
+} from "./sourceQuality";
 import type {
   SearchEvidenceResult,
   SearchInput,
@@ -17,7 +19,7 @@ import type {
   SearchResult,
 } from "./types";
 
-const MAX_EVIDENCE_ITEMS = 10;
+const MAX_EVIDENCE_ITEMS = 5;
 
 export async function buildSearchEvidencePack(
   input: SearchInput,
@@ -120,10 +122,7 @@ async function collectEvidence({
 }): Promise<SearchEvidenceResult> {
   const ticker = input.ticker.trim().toUpperCase();
   const retrievedAt = formatCstTimestamp();
-  const results: Array<{
-    query: EvidenceQuery;
-    result: SearchResult;
-  }> = [];
+  const results: SearchResult[] = [];
 
   for (const query of querySet) {
     const queryResults = await provider.search(query.query, {
@@ -132,28 +131,20 @@ async function collectEvidence({
     });
 
     for (const result of queryResults.slice(0, 5)) {
-      results.push({ query, result });
+      results.push({ ...result, queryPurpose: query.purpose });
     }
   }
 
-  const seen = new Set<string>();
-  const selected = results
-    .filter(({ result }) => {
-      const key = normalizeUrl(result.url) || result.title.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, Math.min(input.maxResults || 5, MAX_EVIDENCE_ITEMS));
+  const deduped = dedupeSearchResults(results);
+  const maxResults = Math.min(input.maxResults || 5, MAX_EVIDENCE_ITEMS);
+  const selected = filterAndRankSearchResults(deduped, maxResults);
 
   const sources: EvidenceSource[] = [];
   const newsItems: EvidenceNewsItem[] = [];
 
-  selected.forEach(({ query, result }, index) => {
+  selected.forEach((result, index) => {
     const id = `src-${index + 1}`;
-    const publisher = inferPublisher(result.url);
-    const sourceType = inferSourceType(query.purpose, result.url);
-    const confidence = inferConfidence(result.url, sourceType);
+    const publisher = result.domain || inferPublisher(result.url);
     const snippet =
       result.snippet ||
       result.content ||
@@ -163,23 +154,32 @@ async function collectEvidence({
       id,
       title: result.title || "Untitled search result",
       url: result.url,
+      domain: result.domain,
       publisher,
-      sourceType,
+      sourceType: result.sourceType,
       publishedAt: result.publishedAt,
       retrievedAt,
-      confidence,
+      confidence: result.confidence,
+      dateStatus: result.dateStatus,
+      qualityReason: result.qualityReason,
+      sourceRank: result.sourceRank || index + 1,
     });
 
     newsItems.push({
       id: `news-${index + 1}`,
       title: result.title || "Untitled search result",
       url: result.url,
+      domain: result.domain,
       publisher,
       publishedAt: result.publishedAt,
       retrievedAt,
+      dateStatus: result.dateStatus,
       snippet,
-      relevance: confidence === "high" ? "high" : "medium",
-      theme: inferTheme(query.purpose),
+      relevance: result.confidence === "high" ? "high" : "medium",
+      confidence: result.confidence,
+      qualityReason: result.qualityReason,
+      sourceRank: result.sourceRank || index + 1,
+      theme: inferTheme(result.queryPurpose),
       sourceId: id,
     });
   });
@@ -192,6 +192,25 @@ async function collectEvidence({
   }
   if (newsItems.length < 3) {
     evidenceWarnings.push("EvidencePack has fewer than 3 source items.");
+  }
+  if (deduped.length < results.length) {
+    evidenceWarnings.push("Duplicate search results were removed.");
+  }
+  if (sources.some((source) => source.dateStatus === "retrieved-only")) {
+    evidenceWarnings.push(
+      "Some sources are retrieved-only because published dates were unavailable.",
+    );
+  }
+  if (sources.length && sources.every((source) => source.confidence === "low")) {
+    evidenceWarnings.push("Only low-confidence sources found.");
+  }
+  if (
+    sources.some((source) => source.confidence === "low") &&
+    sources.some((source) => source.confidence !== "low")
+  ) {
+    evidenceWarnings.push(
+      "Low-confidence sources were included because not enough higher-confidence sources were available.",
+    );
   }
 
   const evidencePack: EvidencePack = {
@@ -214,34 +233,7 @@ async function collectEvidence({
   };
 }
 
-function inferSourceType(
-  purpose: EvidenceQueryPurpose,
-  url?: string,
-): EvidenceSourceType {
-  const normalized = (url || "").toLowerCase();
-  if (purpose === "company-ir" || /investor|ir\.|\/ir\//.test(normalized)) {
-    return "company-ir";
-  }
-  if (/bloomberg|reuters|cnbc|marketwatch|barrons|wsj|financialtimes|ft\.com/.test(normalized)) {
-    return "news";
-  }
-  if (/seekingalpha|fool|investing|marketbeat/.test(normalized)) {
-    return "market-commentary";
-  }
-  return "web";
-}
-
-function inferConfidence(url: string | undefined, sourceType: EvidenceSourceType) {
-  const normalized = (url || "").toLowerCase();
-  if (/sec\.gov|investor|nvidia\.com|apple\.com|microsoft\.com|alphabet\.com/.test(normalized)) {
-    return "high";
-  }
-  if (sourceType === "news" || sourceType === "company-ir") return "medium";
-  if (sourceType === "market-commentary") return "medium";
-  return "low";
-}
-
-function inferTheme(purpose: EvidenceQueryPurpose): EvidenceTheme {
+function inferTheme(purpose: SearchResult["queryPurpose"]): EvidenceTheme {
   if (purpose === "risk-catalyst") return "risk";
   if (purpose === "company-ir") return "company-update";
   if (purpose === "industry-context") return "industry";
@@ -255,17 +247,6 @@ function inferPublisher(url?: string) {
     return host;
   } catch {
     return undefined;
-  }
-}
-
-function normalizeUrl(url?: string) {
-  if (!url) return undefined;
-  try {
-    const parsed = new URL(url);
-    parsed.hash = "";
-    return parsed.toString().replace(/\/$/, "").toLowerCase();
-  } catch {
-    return url.toLowerCase();
   }
 }
 

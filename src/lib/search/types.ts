@@ -1,4 +1,5 @@
 import type { EvidencePack, SearchProviderName } from "@/types/evidence";
+import type { EvidenceQueryPurpose } from "@/types/evidence";
 
 export type SearchDepth = "basic" | "advanced";
 
@@ -16,6 +17,7 @@ export type SearchResult = {
   snippet?: string;
   publishedAt?: string;
   score?: number;
+  queryPurpose?: EvidenceQueryPurpose;
   rawSource?: unknown;
 };
 

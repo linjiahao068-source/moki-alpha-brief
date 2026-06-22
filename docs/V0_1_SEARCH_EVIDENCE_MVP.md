@@ -178,3 +178,15 @@ Phase 9.2 建议做 SEC 官方数据 MVP：
 - 不把 Tavily / mock 搜索结果标记为 `verified-real-data`。
 - 不把 Tavily key 放到前端。
 - 不展示或保存 `reasoning_content`。
+
+## Phase 9.1.1 Search Evidence QA
+
+Phase 9.1.1 adds source quality control on top of the Search Evidence MVP:
+
+- `src/lib/search/sourceQuality.ts` normalizes URLs, extracts domains, classifies source confidence, dedupes results, ranks sources, and caps repeated domains.
+- Evidence sources now include `domain`, `confidence`, `dateStatus`, `qualityReason`, and `sourceRank`.
+- Source Evidence UI shows High / Medium / Low counts and no longer shows raw `date n/a`; missing publish dates are shown as `Retrieved only`.
+- Low-confidence sources such as Reddit, Perplexity, forums, social media, and generic AI answer pages are marked as draft discussion signals, not fact bases.
+- Prompt rules ask DeepSeek to use high / medium confidence evidence for Catalysts and Key Risks, and to avoid strong conclusions from low-confidence sources.
+
+Full handoff: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.

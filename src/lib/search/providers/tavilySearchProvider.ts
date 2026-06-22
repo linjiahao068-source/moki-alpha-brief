@@ -49,7 +49,7 @@ export function createTavilySearchProvider(
       return (payload.results || [])
         .map((item): SearchResult => {
           const title = cleanText(item.title) || "Untitled Tavily result";
-          const content = cleanText(item.content || item.raw_content);
+          const content = truncateSnippet(cleanText(item.content || item.raw_content));
 
           return {
             title,
@@ -58,9 +58,6 @@ export function createTavilySearchProvider(
             snippet: content,
             publishedAt: item.published_date,
             score: typeof item.score === "number" ? item.score : undefined,
-            rawSource: {
-              hasRawContent: Boolean(item.raw_content),
-            },
           };
         })
         .filter((item) => item.title || item.url || item.snippet);
@@ -71,4 +68,10 @@ export function createTavilySearchProvider(
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   return value.replace(/\s+/g, " ").trim();
+}
+
+function truncateSnippet(value: string | undefined, limit = 520) {
+  if (!value) return undefined;
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit).trim()}...`;
 }

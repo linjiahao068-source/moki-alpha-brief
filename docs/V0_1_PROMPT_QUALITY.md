@@ -162,3 +162,16 @@ Phase 9.1 已接入 Search Evidence MVP。`useSearch=true` 时，后端会生成
 - 不把 LLM Demo 标记成 verified-real-data。
 - 不保存生成结果。
 - 不生成真实公开分享链接。
+
+## Phase 9.1.1 Prompt Evidence Quality Rules
+
+When an EvidencePack is present, prompt instructions now include source-confidence boundaries:
+
+- Catalysts should reference 1-2 high / medium confidence search evidence items when available.
+- Key Risks should reference at least one search evidence item, or state that evidence is insufficient.
+- Variant Perception should connect to themes visible in the supplied search evidence.
+- Reddit, forums, Perplexity, AI answer pages, and social sources can only be treated as discussion signals.
+- Low-confidence sources must not support strong factual conclusions.
+- If evidence is thin, the brief should say the point needs SEC / IR / market data verification instead of inventing a fact.
+
+See also: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.

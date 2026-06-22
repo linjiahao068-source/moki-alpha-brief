@@ -178,8 +178,34 @@ export const briefJsonSchema = {
       properties: {
         asOf: { type: "string" },
         ticker: { type: "string" },
-        dataMode: { enum: ["evidence-draft", "verified-real-data"] },
-        sources: { type: "array" },
+        dataMode: { const: "evidence-draft" },
+        searchProvider: { enum: ["mock", "tavily"] },
+        sources: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: true,
+            required: ["id", "title", "retrievedAt", "confidence"],
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              url: { type: "string" },
+              domain: { type: "string" },
+              publisher: { type: "string" },
+              sourceType: { type: "string" },
+              publishedAt: { type: "string" },
+              retrievedAt: { type: "string" },
+              confidence: { enum: ["high", "medium", "low"] },
+              dateStatus: {
+                enum: ["published", "retrieved-only", "unknown"],
+              },
+              qualityReason: { type: "string" },
+              sourceRank: { type: "number" },
+            },
+          },
+        },
+        newsItems: { type: "array" },
+        warnings: { type: "array", items: { type: "string" } },
       },
     },
     sourceNote: {

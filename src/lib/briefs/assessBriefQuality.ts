@@ -73,13 +73,47 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
   if (brief.evidencePack) {
     const sourceCount =
       brief.evidencePack.newsItems?.length || brief.evidencePack.sources.length;
+    const sources = brief.evidencePack.sources || [];
+    const lowCount = sources.filter(
+      (source) => source.confidence === "low",
+    ).length;
+    const highOrMediumCount = sources.filter(
+      (source) => source.confidence === "high" || source.confidence === "medium",
+    ).length;
 
     if (sourceCount < 3) {
       warnings.push("Quality: evidencePack should include at least 3 sources.");
     }
 
+    if (sources.length && lowCount / sources.length > 0.5) {
+      warnings.push(
+        "Quality: more than 50% of evidencePack sources are low confidence.",
+      );
+    }
+
+    if (sources.length && highOrMediumCount === 0) {
+      warnings.push(
+        "Quality: evidencePack has no high or medium confidence sources.",
+      );
+    }
+
+    if (
+      sources.length &&
+      sources.every(
+        (source) => source.dateStatus === "retrieved-only" || !source.publishedAt,
+      )
+    ) {
+      warnings.push(
+        "Quality: all evidencePack sources are retrieved-only; published dates were unavailable.",
+      );
+    }
+
     if (!sourceNoteMentionsSearchProvider(brief)) {
       warnings.push("Quality: sourceNote should mention searchProvider.");
+    }
+
+    if (!sourceNoteMentionsSearchEvidenceDraft(brief)) {
+      warnings.push("Quality: sourceNote should explicitly say Search Evidence Draft.");
     }
 
     if (brief.metadata.dataMode !== "evidence-draft") {
@@ -103,6 +137,12 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
     if (!sectionMentionsRecentEvidence(brief, "risks")) {
       warnings.push(
         "Quality: Key Risks should reference the recent search evidence at a high level.",
+      );
+    }
+
+    if (treatsLowConfidenceAsStrongFact(brief)) {
+      warnings.push(
+        "Quality: brief may be treating a low-confidence discussion or aggregator source as a strong fact.",
       );
     }
   }
@@ -151,6 +191,11 @@ function sourceNoteMentionsSearchProvider(brief: BriefDocument) {
   return /searchprovider|search provider|搜索供应商|search evidence/.test(text);
 }
 
+function sourceNoteMentionsSearchEvidenceDraft(brief: BriefDocument) {
+  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
+  return /search evidence draft|evidence draft/.test(text);
+}
+
 function sourceNoteStillSaysNoLiveData(brief: BriefDocument) {
   const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
   return /no live data|未接入新闻检索/.test(text) && !/search evidence|搜索证据/.test(text);
@@ -173,4 +218,22 @@ function sectionMentionsRecentEvidence(
     .toLowerCase();
 
   return /recent|近期|搜索|source|evidence|证据|公开内容|news/.test(text);
+}
+
+function treatsLowConfidenceAsStrongFact(brief: BriefDocument) {
+  const text = brief.sections
+    .flatMap((section) =>
+      section.blocks.flatMap((block) => {
+        if ("content" in block) return [block.content];
+        if ("items" in block) return block.items;
+        if ("metrics" in block) return block.metrics.map((metric) => metric.value);
+        return [];
+      }),
+    )
+    .join(" ")
+    .toLowerCase();
+
+  return /(reddit|forum|perplexity|stocktwits|x\.com|twitter|social media|aggregator).{0,80}(confirmed|proves|shows|indicates|verified|fact)/.test(
+    text,
+  );
 }

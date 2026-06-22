@@ -40,11 +40,16 @@ export type EvidenceSource = {
   id: string;
   title: string;
   url?: string;
+  domain?: string;
   publisher?: string;
   sourceType: EvidenceSourceType;
   publishedAt?: string;
   retrievedAt: string;
   confidence: EvidenceConfidence;
+  dateStatus?: "published" | "retrieved-only" | "unknown";
+  qualityReason?: string;
+  isDuplicate?: boolean;
+  sourceRank?: number;
 };
 
 export type EvidenceMarketData = {
@@ -68,11 +73,17 @@ export type EvidenceNewsItem = {
   id: string;
   title: string;
   url?: string;
+  domain?: string;
   publisher?: string;
   publishedAt?: string;
   retrievedAt: string;
+  dateStatus?: "published" | "retrieved-only" | "unknown";
   snippet: string;
   relevance: EvidenceRelevance;
+  confidence?: EvidenceConfidence;
+  qualityReason?: string;
+  isDuplicate?: boolean;
+  sourceRank?: number;
   theme?: EvidenceTheme;
   sourceId?: string;
 };

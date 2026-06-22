@@ -176,6 +176,13 @@ function buildEvidenceInstructions(evidencePack?: EvidencePack) {
     "All recent content must be traceable to evidencePack.newsItems or evidencePack.sources.",
     "Do not introduce facts, source names, URLs, or dates that are not present in evidencePack.",
     "Do not treat evidencePack as SEC, real-time stock price, consensus, or verified financial statement data.",
+    "Catalysts must cite or clearly reference 1-2 high/medium confidence search evidence items when available.",
+    "Key Risks must reference at least one search evidence item, or state that search evidence is insufficient and the issue needs SEC / IR / market data verification.",
+    "Variant Perception must connect to recent themes visible in the supplied search evidence.",
+    "Do not use low-confidence sources such as reddit, forums, Perplexity, AI answer pages, or social media as factual bases for strong conclusions.",
+    "Low-confidence sources may only be described as discussion signals or market chatter.",
+    "If evidence is thin, say it needs SEC / IR / market data verification instead of inventing a fact.",
+    "If a number appears in a search snippet, label it as search-summary-mentioned and pending verification.",
     "Set metadata.dataMode to evidence-draft and keep isMock true.",
     "EvidencePack summary for this request:",
     JSON.stringify(summarizeEvidencePack(evidencePack), null, 2),
@@ -191,18 +198,34 @@ function summarizeEvidencePack(evidencePack: EvidencePack) {
     searchProvider: evidencePack.searchProvider,
     sourceCount:
       evidencePack.newsItems?.length || evidencePack.sources?.length || 0,
+    confidenceCounts: countConfidence(evidencePack),
     warnings: evidencePack.warnings || [],
     newsItems: (evidencePack.newsItems || []).slice(0, 8).map((item) => ({
       id: item.id,
       title: item.title,
       publisher: item.publisher,
+      domain: item.domain,
       publishedAt: item.publishedAt,
       retrievedAt: item.retrievedAt,
+      dateStatus: item.dateStatus,
+      confidence: item.confidence,
+      qualityReason: item.qualityReason,
+      sourceRank: item.sourceRank,
       snippet: item.snippet,
       theme: item.theme,
       relevance: item.relevance,
     })),
   };
+}
+
+function countConfidence(evidencePack: EvidencePack) {
+  return (evidencePack.sources || []).reduce(
+    (acc, source) => {
+      acc[source.confidence] += 1;
+      return acc;
+    },
+    { high: 0, medium: 0, low: 0 },
+  );
 }
 
 function buildSchemaInstructions() {

@@ -57,6 +57,28 @@ export function validateBriefDocument(brief: BriefDocument): string[] {
     issues.push("evidence-draft requires evidencePack.newsItems");
   }
 
+  if (brief.metadata?.dataMode === "evidence-draft" && brief.evidencePack) {
+    if (brief.evidencePack.dataMode !== "evidence-draft") {
+      issues.push("evidencePack.dataMode must be evidence-draft");
+    }
+
+    if (!brief.evidencePack.sources?.length) {
+      issues.push("evidence-draft requires evidencePack.sources");
+    }
+
+    for (const source of brief.evidencePack.sources || []) {
+      if (!source.confidence) {
+        issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is required`);
+      } else if (!["high", "medium", "low"].includes(source.confidence)) {
+        issues.push(`EvidenceSource ${source.id || "(unknown)"} confidence is invalid`);
+      }
+
+      if (!source.retrievedAt) {
+        issues.push(`EvidenceSource ${source.id || "(unknown)"} retrievedAt is required`);
+      }
+    }
+  }
+
   if (!Array.isArray(brief.sections)) {
     issues.push("sections must be an array");
   } else {

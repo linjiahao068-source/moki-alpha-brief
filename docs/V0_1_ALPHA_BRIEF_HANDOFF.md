@@ -505,3 +505,15 @@ DEEPSEEK_MODEL=deepseek-chat
 - 页面必须持续显示 Sample / Mock / LLM Demo 和免责声明。
 - 不要用当前 NVDA 文案暗示真实评级、真实目标价或个性化建议。
 - 后续接入真实数据源前，必须先完成证据链、来源日期、置信度和缺失数据展示方案。
+
+### Phase 9.1.1: Search Evidence QA
+
+Status: completed in this iteration.
+
+Added source quality control for Search Evidence Draft:
+
+- `src/lib/search/sourceQuality.ts` for URL normalization, domain classification, confidence scoring, dedupe, ranking, and repeated-domain caps.
+- EvidencePack sources/newsItems now carry `domain`, `confidence`, `dateStatus`, `qualityReason`, and `sourceRank`.
+- `/generate` Source Evidence panel displays High / Medium / Low counts, evidence warnings, domain, confidence, and `Published` vs `Retrieved only` dates.
+- Prompt, `validateBriefDocument`, and `assessBriefQuality` now understand evidence source confidence and Search Evidence Draft quality warnings.
+- New doc: `docs/V0_1_SEARCH_EVIDENCE_QA.md`.

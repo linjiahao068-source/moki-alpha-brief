@@ -73,6 +73,7 @@ Prompt quality:
 Search evidence:
 
 - `docs/V0_1_SEARCH_EVIDENCE_MVP.md`
+- `docs/V0_1_SEARCH_EVIDENCE_QA.md`
 
 Mobile QA:
 
