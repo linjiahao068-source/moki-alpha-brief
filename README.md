@@ -79,6 +79,10 @@ SEC evidence:
 
 - `docs/V0_1_SEC_EVIDENCE_MVP.md`
 
+Research evidence context:
+
+- `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`
+
 Mobile QA:
 
 - `docs/V0_1_MOBILE_QA_REPORT.md`

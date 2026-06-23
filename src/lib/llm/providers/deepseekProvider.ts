@@ -2,6 +2,8 @@
 
 import OpenAI from "openai";
 import { validateBriefDocument } from "@/lib/briefs/validateBrief";
+import { parseJsonObject } from "@/lib/llm/extractJson";
+import { repairBriefJson } from "@/lib/llm/repairBriefJson";
 import type { BriefDocument } from "@/types/brief";
 import {
   DEEPSEEK_DEFAULT_BASE_URL,
@@ -15,7 +17,8 @@ import type {
   GenerateBriefResult,
 } from "../types";
 
-const DEEPSEEK_MAX_TOKENS = 8192;
+const DEEPSEEK_CHAT_MAX_TOKENS = 10000;
+const DEEPSEEK_REASONER_MAX_TOKENS = 12000;
 
 export async function deepseekProvider(
   input: GenerateBriefInput,
@@ -44,20 +47,26 @@ export async function deepseekProvider(
       model,
       modelMode,
     });
-    const parsed = JSON.parse(extractJsonObjectText(rawText)) as BriefDocument;
-    const brief = normalizeDeepSeekBrief(parsed, input);
+    const parsed = await parseOrRepairBriefJson({
+      rawText,
+      input,
+      apiKey,
+      baseURL,
+    });
+    const brief = normalizeDeepSeekBrief(parsed.brief, input);
     const issues = validateBriefDocument(brief);
+    const renderable = isRenderableBrief(brief);
 
     return {
-      ok: issues.length === 0,
+      ok: renderable,
       provider: "deepseek",
       model,
       modelMode,
-      brief: issues.length === 0 ? brief : undefined,
-      issues,
-      error: issues.length
-        ? "DeepSeek returned invalid BriefDocument schema"
-        : undefined,
+      brief: renderable ? brief : undefined,
+      issues: renderable ? issues : ["DeepSeek returned an unrenderable BriefDocument"],
+      jsonRepairStatus: parsed.repairSucceeded ? "succeeded" : "not-needed",
+      jsonRepairSucceeded: parsed.repairSucceeded,
+      error: !renderable ? "DeepSeek returned an unrenderable BriefDocument" : undefined,
     };
   } catch (error) {
     logDeepSeekError(error, {
@@ -73,9 +82,11 @@ export async function deepseekProvider(
       model,
       modelMode,
       issues: [],
+      jsonRepairStatus: error instanceof SyntaxError ? "failed" : "not-needed",
+      jsonRepairSucceeded: false,
       error:
         error instanceof SyntaxError
-          ? "DeepSeek returned text that could not be parsed as JSON."
+          ? "DeepSeek returned text that could not be parsed as JSON; repair failed."
           : getDeepSeekUserError(error),
     };
   }
@@ -103,7 +114,7 @@ async function requestDeepSeekJson({
     {
       role: "system",
       content:
-        "你是一个买方股票研究 memo 生成器。你只能输出符合 BriefDocument Schema 的 JSON。不要输出 Markdown，不要输出解释。",
+        "You are a buy-side stock research memo generator. You must output exactly one valid JSON object parseable by JSON.parse. Do not output Markdown. Do not wrap JSON in code fences. Do not output explanations.",
     },
     {
       role: "user",
@@ -118,14 +129,14 @@ async function requestDeepSeekJson({
             model,
             messages,
             response_format: { type: "json_object" },
-            max_tokens: DEEPSEEK_MAX_TOKENS,
+            max_tokens: DEEPSEEK_REASONER_MAX_TOKENS,
           })
         : await client.chat.completions.create({
             model,
             messages,
-            temperature: 0.3,
+            temperature: 0.2,
             response_format: { type: "json_object" },
-            max_tokens: DEEPSEEK_MAX_TOKENS,
+            max_tokens: DEEPSEEK_CHAT_MAX_TOKENS,
           });
 
     return getCompletionText(completion, { model, modelMode });
@@ -146,13 +157,13 @@ async function requestDeepSeekJson({
         ? await client.chat.completions.create({
             model,
             messages,
-            max_tokens: DEEPSEEK_MAX_TOKENS,
+            max_tokens: DEEPSEEK_REASONER_MAX_TOKENS,
           })
         : await client.chat.completions.create({
             model,
             messages,
-            temperature: 0.3,
-            max_tokens: DEEPSEEK_MAX_TOKENS,
+            temperature: 0.2,
+            max_tokens: DEEPSEEK_CHAT_MAX_TOKENS,
           });
 
     return getCompletionText(completion, { model, modelMode });
@@ -203,18 +214,6 @@ function shouldRetryWithoutResponseFormat(error: unknown) {
   );
 }
 
-function extractJsonObjectText(text: string) {
-  const trimmed = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "");
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new SyntaxError("No JSON object found in DeepSeek response.");
-  }
-
-  return trimmed.slice(start, end + 1);
-}
-
 function normalizeDeepSeekBrief(
   brief: BriefDocument,
   input: GenerateBriefInput,
@@ -223,10 +222,15 @@ function normalizeDeepSeekBrief(
   const now = formatCstTimestamp();
   const evidencePack = input.evidencePack;
   const secEvidencePack = input.secEvidencePack;
+  const researchEvidenceContext = input.researchEvidenceContext;
   const hasSearchEvidence = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
-  const hasAnyEvidence = hasSearchEvidence || hasSecEvidence;
-  const evidenceLabel = getEvidenceLabel(hasSearchEvidence, hasSecEvidence);
+  const hasAnyEvidence = Boolean(researchEvidenceContext) || hasSearchEvidence || hasSecEvidence;
+  const evidenceLabel = getEvidenceLabel(
+    hasSearchEvidence,
+    hasSecEvidence,
+    researchEvidenceContext?.evidenceLevel,
+  );
   const companyName =
     input.companyName?.trim() ||
     brief.metadata?.companyName ||
@@ -276,8 +280,12 @@ function normalizeDeepSeekBrief(
     id: "source-note",
     title: brief.sourceNote?.title || "Source & Method Note",
     paragraphs: [
-      ...(brief.sourceNote?.paragraphs || []).map(sanitizeUserVisibleBoundaryText),
-      buildEvidenceSourceNote({ evidencePack, secEvidencePack, now }),
+      buildEvidenceSourceNote({
+        evidencePack,
+        secEvidencePack,
+        researchEvidenceContext,
+        now,
+      }),
       "若页面中出现财务数字、估值倍数、目标价或隐含收益，必须理解为 SEC companyfacts / 搜索摘要 / 模拟示例 / 待核查语境，不代表实时行情、一致预期或正式投资建议。",
     ].filter(Boolean),
   };
@@ -289,11 +297,67 @@ function normalizeDeepSeekBrief(
   };
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
+  brief.researchEvidenceContext = researchEvidenceContext;
+  brief.evidenceSummary = researchEvidenceContext?.coverage;
 
   return brief;
 }
 
-function getEvidenceLabel(hasSearchEvidence: boolean, hasSecEvidence: boolean) {
+async function parseOrRepairBriefJson({
+  rawText,
+  input,
+  apiKey,
+  baseURL,
+}: {
+  rawText: string;
+  input: GenerateBriefInput;
+  apiKey: string;
+  baseURL: string;
+}): Promise<{ brief: BriefDocument; repairSucceeded: boolean }> {
+  try {
+    return {
+      brief: parseJsonObject<BriefDocument>(rawText),
+      repairSucceeded: false,
+    };
+  } catch {
+    const repaired = await repairBriefJson({
+      rawText,
+      input,
+      apiKey,
+      baseURL,
+    });
+
+    return {
+      brief: repaired,
+      repairSucceeded: true,
+    };
+  }
+}
+
+function isRenderableBrief(brief: BriefDocument) {
+  return Boolean(
+    brief.schemaVersion &&
+      brief.slug &&
+      brief.metadata?.ticker &&
+      brief.metadata?.companyName &&
+      brief.metadata?.dataMode &&
+      Array.isArray(brief.sections) &&
+      brief.sections.length &&
+      brief.scenarioAnalysis?.scenarios?.length &&
+      brief.monitoringDashboard?.metrics?.length &&
+      brief.sourceNote?.paragraphs?.length &&
+      brief.disclaimer?.text,
+  );
+}
+
+function getEvidenceLabel(
+  hasSearchEvidence: boolean,
+  hasSecEvidence: boolean,
+  evidenceLevel?: string,
+) {
+  if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
+  if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
+  if (evidenceLevel === "search-only") return "Search Evidence Draft";
   if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
   if (hasSecEvidence) return "SEC Evidence Draft";
   if (hasSearchEvidence) return "Search Evidence Draft";
@@ -329,13 +393,21 @@ function ensureDataBadge(
 function buildEvidenceSourceNote({
   evidencePack,
   secEvidencePack,
+  researchEvidenceContext,
   now,
 }: {
   evidencePack: GenerateBriefInput["evidencePack"];
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
+  researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const notes: string[] = [];
+
+  if (researchEvidenceContext) {
+    notes.push(
+      `Research Evidence Context: evidenceLevel=${researchEvidenceContext.evidenceLevel}; dataMode=evidence-draft; sourceCount=${researchEvidenceContext.sourceRegistry.length}; factCount=${researchEvidenceContext.factLedger.length}; missing=${researchEvidenceContext.coverage.missing.join(", ")}.`,
+    );
+  }
 
   if (evidencePack) {
     notes.push(
@@ -355,13 +427,9 @@ function buildEvidenceSourceNote({
     );
   }
 
-  notes.push("当前未接入实时股价、一致预期或数据库保存，不能标记为验证级真实数据。");
+  notes.push("当前未接入实时股价、一致预期、公司 IR 正文解析或数据库保存，不能标记为验证级真实数据。");
 
   return notes.join(" ");
-}
-
-function sanitizeUserVisibleBoundaryText(text: string) {
-  return text.replaceAll("verified-real-data", "verification-grade real data");
 }
 
 function getDeepSeekUserError(error: unknown) {

@@ -183,3 +183,11 @@ When `secEvidencePack` exists, prompt instructions require Financial Statement D
 Search evidence and SEC evidence must stay distinguishable. Tavily snippets cannot be converted into SEC fiscal facts. Valuation still cannot produce real target-price commitments because real-time price and consensus estimates are not connected.
 
 See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
+
+## Phase 9.3 Research Evidence Prompt Rules
+
+Prompt injection now uses compact `ResearchEvidenceContext` instead of separate raw Search / SEC payloads.
+
+Financial Deep Dive can only use `official-financial` facts from SEC companyfacts. Catalysts and Key Risks use search `recent-development` / `risk-catalyst` facts or coverage missing items. Valuation must not output real target price, implied return, or formal rating while market price and consensus coverage are missing.
+
+See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.

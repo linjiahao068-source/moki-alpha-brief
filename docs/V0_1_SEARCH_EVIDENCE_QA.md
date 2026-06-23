@@ -134,6 +134,12 @@ Phase 9.2 建议进入 SEC 官方数据 MVP：
 
 Search Evidence QA remains focused on web search source quality. Phase 9.2 adds a separate `SecEvidencePack` so SEC facts and Tavily summaries are not mixed together.
 
+## Phase 9.3 Research Evidence Context
+
+Phase 9.3 introduces `sourceRegistry`, `factLedger`, and `coverage` so Search Evidence and SEC Evidence can be reviewed together without mixing their factual roles.
+
+See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.
+
 SEC facts are high-confidence official disclosure facts, but the overall page is still `evidence-draft`, not `verified-real-data`.
 
 See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.

@@ -147,3 +147,8 @@ Phase 9.3 / 9.4 建议：
 ## 安全边界
 
 SEC facts 是官方披露数据，但抽取逻辑仍是 MVP。本页面仅供研究和信息参考，不构成投资建议。不要把搜索摘要当 SEC facts，不要把 SEC Evidence Draft 当成 verified-real-data。
+## Phase 9.3 Research Evidence Context
+
+Phase 9.3 adds `ResearchEvidenceContext`, which keeps Search Evidence and SEC Evidence separate while exposing one unified context to the prompt and `/generate` QA UI.
+
+See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.

@@ -388,3 +388,16 @@ SEC evidence includes:
 `secEvidencePack.dataMode` remains `evidence-draft`. SEC companyfacts are official disclosure data, but the current extraction layer is still MVP and must not be presented as `verified-real-data`.
 
 See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
+
+## Phase 9.3 ResearchEvidenceContext Extension
+
+`BriefDocument` can now optionally carry:
+
+- `researchEvidenceContext`
+- `evidenceSummary`
+
+`ResearchEvidenceContext` includes `evidenceLevel`, `sourceRegistry`, `factLedger`, `coverage`, and `warnings`.
+
+It keeps search draft items, SEC official facts, and missing data boundaries separate. `dataMode` remains `evidence-draft`; `verified-real-data` is still not allowed in the current MVP.
+
+See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.

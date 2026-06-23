@@ -1,10 +1,16 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import type { BriefDocument } from "@/types/brief";
-import type { DeepSeekModelMode } from "@/lib/llm/types";
 import { DataBoundaryNote } from "@/components/brief/DataBoundaryNote";
+import type { DeepSeekModelMode } from "@/lib/llm/types";
+import type { BriefDocument } from "@/types/brief";
+import type {
+  EvidenceCoverageSummary,
+  ResearchEvidenceContext,
+  ResearchEvidenceLevel,
+} from "@/types/evidence";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
+import { ResearchEvidencePanel } from "./ResearchEvidencePanel";
 import { SecEvidencePanel } from "./SecEvidencePanel";
 import { SourceEvidenceList } from "./SourceEvidenceList";
 
@@ -25,6 +31,12 @@ type GenerateApiResult = {
   secIsFallback?: boolean;
   secWarnings?: string[];
   cik?: string;
+  researchEvidenceContext?: ResearchEvidenceContext;
+  evidenceLevel?: ResearchEvidenceLevel;
+  coverage?: EvidenceCoverageSummary;
+  evidenceWarnings?: string[];
+  jsonRepairStatus?: "not-needed" | "attempted" | "succeeded" | "failed";
+  jsonRepairSucceeded?: boolean;
 };
 
 export function GenerateBriefForm() {
@@ -37,6 +49,11 @@ export function GenerateBriefForm() {
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const researchEvidenceContext = useMemo(
+    () => result?.researchEvidenceContext || result?.brief?.researchEvidenceContext,
+    [result],
+  );
+  const coverage = result?.coverage || result?.brief?.evidenceSummary;
   const issueList = useMemo(
     () => (result?.issues || []).filter(Boolean),
     [result],
@@ -68,9 +85,7 @@ export function GenerateBriefForm() {
     try {
       const response = await fetch("/api/generate-brief", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticker,
           companyName,
@@ -83,7 +98,6 @@ export function GenerateBriefForm() {
       const payload = (await response.json()) as GenerateApiResult;
 
       setResult(payload);
-
       if (!response.ok || !payload.ok) {
         setError(payload.error || "Brief generation failed.");
       }
@@ -134,14 +148,14 @@ export function GenerateBriefForm() {
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <ModelModeOption
               checked={modelMode === "chat"}
-              description="Fast 适合快速生成，使用 deepseek-chat。"
+              description="Fast is optimized for quick structured generation with deepseek-chat."
               label="Fast"
               model="deepseek-chat"
               onChange={() => setModelMode("chat")}
             />
             <ModelModeOption
               checked={modelMode === "reasoner"}
-              description="Deep Reasoning 适合复杂研报结构推理，速度可能更慢、成本可能更高。"
+              description="Deep Reasoning uses deepseek-reasoner. It may be slower, and reasoning_content is never shown or stored."
               label="Deep Reasoning"
               model="deepseek-reasoner"
               onChange={() => setModelMode("reasoner")}
@@ -149,50 +163,28 @@ export function GenerateBriefForm() {
           </div>
         </fieldset>
 
-        <label className="mt-5 flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
-          <input
-            type="checkbox"
-            checked={useSearch}
-            onChange={(event) => setUseSearch(event.target.checked)}
-            className="mt-1 size-4 accent-[var(--brand-hover)]"
-          />
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold leading-6 text-[var(--foreground)]">
-              Use real-time web search
-            </span>
-            <span className="mt-1 block text-sm leading-6 text-[var(--foreground)] opacity-75">
-              打开后会先构建 Search Evidence Pack，再让 DeepSeek 基于搜索证据草稿生成；当前仍未接 SEC、实时股价、一致预期或数据库。
-            </span>
-          </span>
-        </label>
-
-        <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
-          <input
-            type="checkbox"
-            checked={useSec}
-            onChange={(event) => setUseSec(event.target.checked)}
-            className="mt-1 size-4 accent-[var(--brand-hover)]"
-          />
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold leading-6 text-[var(--foreground)]">
-              Use SEC official data
-            </span>
-            <span className="mt-1 block text-sm leading-6 text-[var(--foreground)] opacity-75">
-              Fetch SEC EDGAR companyfacts and submissions metadata for an SEC Evidence Draft. This does not include real-time price, consensus estimates, a database, or saved share pages.
-            </span>
-          </span>
-        </label>
+        <EvidenceToggle
+          checked={useSearch}
+          description="Fetch Tavily or mock search evidence for recent developments, catalysts, and risk context."
+          label="Use real-time web search"
+          onChange={setUseSearch}
+        />
+        <EvidenceToggle
+          checked={useSec}
+          description="Fetch SEC EDGAR companyfacts and submissions metadata for official disclosure evidence."
+          label="Use SEC official data"
+          onChange={setUseSec}
+        />
 
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
-          当前为 LLM Demo / Mock Demo / Search Evidence Draft，未接入 SEC、实时股价、一致预期或数据库，不构成投资建议。
+          当前为 LLM Demo / Evidence Draft。可选择搜索证据和 SEC official data；仍未接入实时股价、一致预期、公司 IR 正文解析或数据库，不构成投资建议。
         </div>
-
         <button
           type="submit"
           disabled={isLoading}
           className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[8px] bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--brand-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-hover)] focus:ring-offset-2 focus:ring-offset-[var(--background)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isLoading ? "生成中..." : "生成 Brief"}
+          {isLoading ? "Generating..." : "生成 Brief"}
         </button>
       </form>
 
@@ -207,153 +199,54 @@ export function GenerateBriefForm() {
           <div className="grid gap-3 text-sm leading-6 text-[var(--foreground)] sm:grid-cols-2 lg:grid-cols-4">
             <StatusItem label="Provider" value={result.provider} mono />
             <StatusItem label="Model" value={result.model || "n/a"} mono />
-            <StatusItem
-              label="Mode"
-              value={result.modelMode || modelMode}
-              mono
-            />
-            <StatusItem
-              label="Fallback"
-              value={result.isFallback ? "Yes" : "No"}
-              mono
-            />
-            <StatusItem
-              label="Validation"
-              value={result.ok ? "Passed" : "Needs attention"}
-              mono
-            />
-            <StatusItem
-              label="Quality"
-              value={
-                qualityWarningList.length
-                  ? `Warnings: ${qualityWarningList.length}`
-                  : "Clear"
-              }
-              mono
-            />
-            <StatusItem
-              label="Data Mode"
-              value={result.brief?.metadata.dataMode || "n/a"}
-              mono
-            />
-            <StatusItem
-              label="Evidence"
-              value={
-                getEvidenceLabel(result.brief)
-              }
-              mono
-            />
-            <StatusItem
-              label="Search Provider"
-              value={result.searchProvider || "n/a"}
-              mono
-            />
-            <StatusItem
-              label="Sources"
-              value={String(evidenceStats.total)}
-              mono
-            />
-            <StatusItem
-              label="High / Medium / Low"
-              value={`${evidenceStats.high} / ${evidenceStats.medium} / ${evidenceStats.low}`}
-              mono
-            />
-            <StatusItem
-              label="Evidence Warnings"
-              value={String(evidenceStats.warningCount)}
-              mono
-            />
-            <StatusItem
-              label="SEC Provider"
-              value={result.secProvider || "n/a"}
-              mono
-            />
-            <StatusItem
-              label="CIK"
-              value={result.cik || result.brief?.secEvidencePack?.cik || "n/a"}
-              mono
-            />
-            <StatusItem
-              label="Recent Filings"
-              value={String(secStats.recentFilings)}
-              mono
-            />
-            <StatusItem
-              label="Fiscal Facts"
-              value={String(secStats.fiscalFacts)}
-              mono
-            />
+            <StatusItem label="Mode" value={result.modelMode || modelMode} mono />
+            <StatusItem label="Fallback" value={result.isFallback ? "Yes" : "No"} mono />
+            <StatusItem label="Validation" value={result.ok ? "Passed" : "Needs attention"} mono />
+            <StatusItem label="JSON Repair" value={getJsonRepairLabel(result)} mono />
+            <StatusItem label="Data Mode" value={result.brief?.metadata.dataMode || "n/a"} mono />
+            <StatusItem label="Evidence" value={getEvidenceLabel(result.brief)} mono />
+            <StatusItem label="Evidence Level" value={result.evidenceLevel || researchEvidenceContext?.evidenceLevel || "none"} mono />
+            <StatusItem label="Coverage" value={getCoverageLabel(coverage)} mono />
+            <StatusItem label="Revenue / NI / EPS" value={getFactCoverageLabel(coverage)} mono />
+            <StatusItem label="Search Provider" value={result.searchProvider || "n/a"} mono />
+            <StatusItem label="Sources" value={String(evidenceStats.total)} mono />
+            <StatusItem label="High / Medium / Low" value={`${evidenceStats.high} / ${evidenceStats.medium} / ${evidenceStats.low}`} mono />
+            <StatusItem label="SEC Provider" value={result.secProvider || "n/a"} mono />
+            <StatusItem label="CIK" value={result.cik || result.brief?.secEvidencePack?.cik || "n/a"} mono />
+            <StatusItem label="Recent Filings" value={String(secStats.recentFilings)} mono />
+            <StatusItem label="Fiscal Facts" value={String(secStats.fiscalFacts)} mono />
           </div>
-          <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-            当前为 LLM Demo / Search Evidence Draft，未接入 SEC、实时股价、
-            一致预期或数据库；搜索证据仅用于辅助研究草稿。
+
+          <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
+            {getGenerationStatusMessage(result)}
           </p>
-          <p className="mt-3 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
-            当前阶段为 Search Evidence MVP，搜索证据仅用于辅助研究草稿，未接 SEC、实时股价、一致预期，不构成投资建议。
-          </p>
-          {result.error && result.ok ? (
-            <p className="mt-4 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
-              {result.error}
+
+          {result.jsonRepairSucceeded ? (
+            <p className="mt-3 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
+              DeepSeek output was repaired into valid JSON.
             </p>
           ) : null}
+
           {(result.modelMode || modelMode) === "reasoner" ? (
-            <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-              使用 Deep Reasoning 模式生成；推理过程不会展示，仅展示最终结构化
-              BriefDocument。
+            <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
+              使用 Deep Reasoning 模式生成；推理过程不会展示，仅展示最终结构化 BriefDocument。
             </p>
           ) : null}
-          {issueList.length ? (
-            <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--foreground)]">
-                Validation Issues
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[var(--foreground)] opacity-80">
-                {issueList.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {qualityWarningList.length ? (
-            <div className="mt-4 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--brand-ink)]">
-                Quality Warnings
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[var(--brand-ink)]">
-                {qualityWarningList.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {searchWarningList.length ? (
-            <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--foreground)]">
-                Search Warnings
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[var(--foreground)] opacity-80">
-                {searchWarningList.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {secWarningList.length ? (
-            <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--foreground)]">
-                SEC Warnings
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[var(--foreground)] opacity-80">
-                {secWarningList.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <IssuePanel title="Validation Issues" items={issueList} />
+          <IssuePanel title="Quality Warnings" items={qualityWarningList} brand />
+          <IssuePanel title="Search Warnings" items={searchWarningList} />
+          <IssuePanel title="SEC Warnings" items={secWarningList} />
         </section>
       ) : null}
 
       {result?.brief ? <DataBoundaryNote brief={result.brief} /> : null}
+
+      {researchEvidenceContext ? (
+        <ResearchEvidencePanel
+          context={researchEvidenceContext}
+          warnings={result?.evidenceWarnings}
+        />
+      ) : null}
 
       {result?.brief?.evidencePack ? (
         <SourceEvidenceList
@@ -369,8 +262,49 @@ export function GenerateBriefForm() {
         />
       ) : null}
 
-      {result?.brief ? <GeneratedBriefPreview brief={result.brief} /> : null}
+      {result?.brief ? (
+        <GeneratedBriefPreview
+          brief={result.brief}
+          generationMeta={{
+            provider: result.provider,
+            isFallback: result.isFallback,
+            jsonRepairStatus: result.jsonRepairStatus,
+            jsonRepairSucceeded: result.jsonRepairSucceeded,
+          }}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function EvidenceToggle({
+  checked,
+  description,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  description: string;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 size-4 accent-[var(--brand-hover)]"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-6 text-[var(--foreground)]">
+          {label}
+        </span>
+        <span className="mt-1 block text-sm leading-6 text-[var(--foreground)] opacity-75">
+          {description}
+        </span>
+      </span>
+    </label>
   );
 }
 
@@ -443,6 +377,35 @@ function StatusItem({
   );
 }
 
+function IssuePanel({
+  brand = false,
+  items,
+  title,
+}: {
+  brand?: boolean;
+  items: string[];
+  title: string;
+}) {
+  if (!items.length) return null;
+
+  return (
+    <div
+      className={`mt-4 rounded-[8px] border px-4 py-3 ${
+        brand
+          ? "border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-ink)]"
+          : "border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)]"
+      }`}
+    >
+      <p className="text-sm font-semibold">{title}</p>
+      <ul className="mt-2 space-y-2 text-sm leading-6 opacity-85">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function getEvidenceStats(brief?: BriefDocument) {
   const sources = brief?.evidencePack?.sources || [];
   const warnings = brief?.evidencePack?.warnings || [];
@@ -472,6 +435,11 @@ function getSecStats(brief?: BriefDocument) {
 }
 
 function getEvidenceLabel(brief?: BriefDocument) {
+  const level = brief?.researchEvidenceContext?.evidenceLevel;
+  if (level === "search-and-sec") return "Search + SEC Evidence Draft";
+  if (level === "sec-only") return "SEC Evidence Draft";
+  if (level === "search-only") return "Search Evidence Draft";
+
   const hasSearch = Boolean(brief?.evidencePack);
   const hasSec = Boolean(brief?.secEvidencePack);
 
@@ -479,4 +447,51 @@ function getEvidenceLabel(brief?: BriefDocument) {
   if (hasSec) return "SEC Evidence Draft";
   if (hasSearch) return "Search Evidence Draft";
   return "None / No Live Data";
+}
+
+function getGenerationStatusMessage(result: GenerateApiResult) {
+  const level = result.evidenceLevel || result.brief?.researchEvidenceContext?.evidenceLevel;
+
+  if (result.provider === "mock" && result.isFallback && level && level !== "none") {
+    return "Evidence was fetched, but LLM generation failed. Showing fallback mock brief.";
+  }
+
+  if (result.provider === "deepseek" && level === "search-and-sec") {
+    return "Search + SEC Evidence Draft generated with DeepSeek. SEC companyfacts / submissions and search evidence are attached; real-time price, consensus estimates, company IR narrative parsing, and database save are still not connected.";
+  }
+
+  if (level === "sec-only") {
+    return "SEC Evidence Draft is attached. SEC companyfacts / submissions are connected; search evidence, real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
+  }
+
+  if (level === "search-only") {
+    return "Search Evidence Draft is attached. SEC official data, real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
+  }
+
+  return "LLM Demo / No Live Data. Real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
+}
+
+function getJsonRepairLabel(result: GenerateApiResult) {
+  if (result.jsonRepairSucceeded) return "Succeeded";
+  if (result.jsonRepairStatus === "failed") return "Failed";
+  if (result.jsonRepairStatus === "attempted") return "Attempted";
+  return "Not needed";
+}
+
+function getCoverageLabel(coverage?: EvidenceCoverageSummary) {
+  if (!coverage) return "none";
+  return [
+    coverage.hasSearchEvidence ? "Search" : "Search missing",
+    coverage.hasSecEvidence ? "SEC" : "SEC missing",
+    "Market Price missing",
+    "Consensus missing",
+    "IR missing",
+  ].join(" / ");
+}
+
+function getFactCoverageLabel(coverage?: EvidenceCoverageSummary) {
+  if (!coverage) return "n/a";
+  return `${coverage.hasRevenueFact ? "yes" : "no"} / ${
+    coverage.hasNetIncomeFact ? "yes" : "no"
+  } / ${coverage.hasEpsFact ? "yes" : "no"}`;
 }

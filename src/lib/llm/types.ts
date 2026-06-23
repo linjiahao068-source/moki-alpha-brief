@@ -1,5 +1,11 @@
 import type { BriefDocument, BriefLanguage } from "@/types/brief";
-import type { EvidencePack, SecEvidencePack } from "@/types/evidence";
+import type {
+  EvidenceCoverageSummary,
+  EvidencePack,
+  ResearchEvidenceContext,
+  ResearchEvidenceLevel,
+  SecEvidencePack,
+} from "@/types/evidence";
 
 export type DeepSeekModelMode = "chat" | "reasoner";
 
@@ -14,6 +20,7 @@ export type GenerateBriefInput = {
   useSec?: boolean;
   evidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  researchEvidenceContext?: ResearchEvidenceContext;
 };
 
 export type GenerateBriefProvider = "mock" | "deepseek";
@@ -35,4 +42,10 @@ export type GenerateBriefResult = {
   secIsFallback?: boolean;
   secWarnings?: string[];
   cik?: string;
+  researchEvidenceContext?: ResearchEvidenceContext;
+  evidenceLevel?: ResearchEvidenceLevel;
+  coverage?: EvidenceCoverageSummary;
+  evidenceWarnings?: string[];
+  jsonRepairStatus?: "not-needed" | "attempted" | "succeeded" | "failed";
+  jsonRepairSucceeded?: boolean;
 };

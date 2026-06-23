@@ -1,4 +1,5 @@
 import { assessBriefQuality } from "@/lib/briefs/assessBriefQuality";
+import { buildResearchEvidenceContext } from "@/lib/evidence/buildResearchEvidenceContext";
 import { buildSearchEvidencePack } from "@/lib/search/buildSearchEvidencePack";
 import { buildSecEvidencePack } from "@/lib/sec/buildSecEvidencePack";
 import { getDeepSeekConfigIssue, getLlmConfig } from "./config";
@@ -43,8 +44,26 @@ async function prepareEvidenceInput(
   input: GenerateBriefInput;
   searchMeta: Partial<GenerateBriefResult>;
 }> {
-  if ((!input.useSearch || input.evidencePack) && (!input.useSec || input.secEvidencePack)) {
-    return { input, searchMeta: {} };
+  if (
+    (!input.useSearch || input.evidencePack) &&
+    (!input.useSec || input.secEvidencePack)
+  ) {
+    const researchEvidenceContext =
+      input.researchEvidenceContext ||
+      buildResearchEvidenceContext({
+        ticker: input.ticker,
+        companyName: input.companyName,
+        searchEvidencePack: input.evidencePack,
+        secEvidencePack: input.secEvidencePack,
+      });
+
+    return {
+      input: {
+        ...input,
+        researchEvidenceContext,
+      },
+      searchMeta: buildEvidenceMeta(researchEvidenceContext),
+    };
   }
 
   const [searchResult, secResult] = await Promise.all([
@@ -63,13 +82,26 @@ async function prepareEvidenceInput(
       : Promise.resolve(undefined),
   ]);
 
+  const evidencePack = input.evidencePack || searchResult?.evidencePack;
+  const secEvidencePack = input.secEvidencePack || secResult?.secEvidencePack;
+  const researchEvidenceContext =
+    input.researchEvidenceContext ||
+    buildResearchEvidenceContext({
+      ticker: input.ticker,
+      companyName: input.companyName,
+      searchEvidencePack: evidencePack,
+      secEvidencePack,
+    });
+
   return {
     input: {
       ...input,
-      evidencePack: input.evidencePack || searchResult?.evidencePack,
-      secEvidencePack: input.secEvidencePack || secResult?.secEvidencePack,
+      evidencePack,
+      secEvidencePack,
+      researchEvidenceContext,
     },
     searchMeta: {
+      ...buildEvidenceMeta(researchEvidenceContext),
       ...(searchResult
         ? {
             searchProvider: searchResult.provider,
@@ -90,12 +122,26 @@ async function prepareEvidenceInput(
   };
 }
 
+function buildEvidenceMeta(
+  researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"],
+): Partial<GenerateBriefResult> {
+  if (!researchEvidenceContext) return {};
+
+  return {
+    researchEvidenceContext,
+    evidenceLevel: researchEvidenceContext.evidenceLevel,
+    coverage: researchEvidenceContext.coverage,
+    evidenceWarnings: researchEvidenceContext.warnings || [],
+  };
+}
+
 async function fallbackToMock(
   input: GenerateBriefInput,
   reason: string,
   providerIssues: string[] = [],
   searchMeta: Partial<GenerateBriefResult> = {},
 ): Promise<GenerateBriefResult> {
+  void providerIssues;
   const fallback = await mockProvider(input);
 
   return withQualityWarnings(
@@ -103,9 +149,11 @@ async function fallbackToMock(
       ...fallback,
       isFallback: true,
       error: reason,
-      issues: [reason, ...providerIssues, ...(fallback.issues ?? [])].filter(
-        Boolean,
-      ),
+      issues: fallback.issues ?? [],
+      jsonRepairStatus: reason.toLowerCase().includes("repair failed")
+        ? "failed"
+        : "not-needed",
+      jsonRepairSucceeded: false,
     },
     searchMeta,
   );
@@ -118,8 +166,16 @@ function withQualityWarnings(
   return {
     ...result,
     ...searchMeta,
+    isFallback: result.isFallback || false,
     qualityWarnings: result.brief
-      ? assessBriefQuality(result.brief)
+      ? [
+          ...assessBriefQuality(result.brief),
+          ...(result.jsonRepairSucceeded
+            ? ["DeepSeek output was repaired into valid JSON."]
+            : []),
+        ]
       : (result.qualityWarnings ?? []),
+    jsonRepairStatus: result.jsonRepairStatus || "not-needed",
+    jsonRepairSucceeded: result.jsonRepairSucceeded || false,
   };
 }

@@ -6,6 +6,12 @@ export type SearchProviderName = "mock" | "tavily";
 
 export type SecProviderName = "mock" | "sec";
 
+export type ResearchEvidenceLevel =
+  | "none"
+  | "search-only"
+  | "sec-only"
+  | "search-and-sec";
+
 export type EvidenceQueryPurpose =
   | "recent-news"
   | "company-ir"
@@ -16,6 +22,8 @@ export type EvidenceSourceType =
   | "news"
   | "company-ir"
   | "web"
+  | "sec-submission"
+  | "sec-companyfacts"
   | "market-commentary"
   | "manual"
   | "sec"
@@ -155,6 +163,85 @@ export type EvidencePack = {
   newsItems?: EvidenceNewsItem[];
   irItems?: EvidenceIrItem[];
   consensusData?: EvidenceConsensusData;
+  warnings?: string[];
+};
+
+export type ResearchEvidenceSource = {
+  id: string;
+  sourceKind: "search" | "sec" | "manual" | "mock";
+  sourceType:
+    | "news"
+    | "company-ir"
+    | "web"
+    | "sec-submission"
+    | "sec-companyfacts"
+    | "market-commentary"
+    | "manual";
+  title: string;
+  url?: string;
+  domain?: string;
+  publisher?: string;
+  confidence: EvidenceConfidence;
+  retrievedAt: string;
+  publishedAt?: string;
+  dateStatus?: "published" | "retrieved-only" | "unknown";
+  linkedFactIds?: string[];
+};
+
+export type ResearchEvidenceFact = {
+  id: string;
+  factType:
+    | "official-financial"
+    | "filing-metadata"
+    | "recent-development"
+    | "risk-catalyst"
+    | "market-discussion"
+    | "llm-analysis-placeholder";
+  sourceKind: "sec" | "search" | "mock";
+  sourceId: string;
+  label: string;
+  value?: string | number;
+  unit?: string;
+  period?: string;
+  filed?: string;
+  form?: string;
+  concept?: string;
+  confidence: EvidenceConfidence;
+  allowedUse:
+    | "financial-analysis"
+    | "recent-developments"
+    | "risk-catalyst"
+    | "context-only"
+    | "not-for-facts";
+  note?: string;
+};
+
+export type EvidenceCoverageSummary = {
+  hasSearchEvidence: boolean;
+  hasSecEvidence: boolean;
+  hasRecentFilings: boolean;
+  hasFiscalFacts: boolean;
+  hasRevenueFact: boolean;
+  hasNetIncomeFact: boolean;
+  hasEpsFact: boolean;
+  hasMarketPrice: false;
+  hasConsensus: false;
+  hasCompanyIr: false;
+  missing: string[];
+  warnings: string[];
+};
+
+export type ResearchEvidenceContext = {
+  asOf: string;
+  ticker: string;
+  companyName?: string;
+  dataMode: "evidence-draft";
+  evidenceLevel: ResearchEvidenceLevel;
+  searchEvidencePack?: EvidencePack;
+  secEvidencePack?: SecEvidencePack;
+  sourceRegistry: ResearchEvidenceSource[];
+  factLedger: ResearchEvidenceFact[];
+  coverage: EvidenceCoverageSummary;
   warnings?: string[];
 };
 

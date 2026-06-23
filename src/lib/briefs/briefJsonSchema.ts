@@ -224,6 +224,36 @@ export const briefJsonSchema = {
         warnings: { type: "array", items: { type: "string" } },
       },
     },
+    researchEvidenceContext: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        asOf: { type: "string" },
+        ticker: { type: "string" },
+        companyName: { type: "string" },
+        dataMode: { const: "evidence-draft" },
+        evidenceLevel: {
+          enum: ["none", "search-only", "sec-only", "search-and-sec"],
+        },
+        sourceRegistry: { type: "array" },
+        factLedger: { type: "array" },
+        coverage: { type: "object", additionalProperties: true },
+        warnings: { type: "array", items: { type: "string" } },
+      },
+    },
+    evidenceSummary: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        hasSearchEvidence: { type: "boolean" },
+        hasSecEvidence: { type: "boolean" },
+        hasMarketPrice: { const: false },
+        hasConsensus: { const: false },
+        hasCompanyIr: { const: false },
+        missing: { type: "array", items: { type: "string" } },
+        warnings: { type: "array", items: { type: "string" } },
+      },
+    },
     sourceNote: {
       type: "object",
       additionalProperties: true,

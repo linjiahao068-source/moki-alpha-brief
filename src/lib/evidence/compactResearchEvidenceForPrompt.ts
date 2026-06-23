@@ -1,0 +1,91 @@
+import type {
+  ResearchEvidenceContext,
+  ResearchEvidenceFact,
+  ResearchEvidenceSource,
+} from "@/types/evidence";
+
+export function compactResearchEvidenceForPrompt(
+  context: ResearchEvidenceContext,
+) {
+  const factLedger = selectFactsForPrompt(context.factLedger);
+
+  return {
+    asOf: context.asOf,
+    ticker: context.ticker,
+    companyName: context.companyName,
+    dataMode: context.dataMode,
+    evidenceLevel: context.evidenceLevel,
+    coverage: context.coverage,
+    warnings: (context.warnings || []).slice(0, 5),
+    sourceRegistry: context.sourceRegistry.slice(0, 8).map(compactSource),
+    factLedger: factLedger.map(compactFact),
+  };
+}
+
+function compactSource(source: ResearchEvidenceSource) {
+  return {
+    id: source.id,
+    sourceKind: source.sourceKind,
+    sourceType: source.sourceType,
+    title: source.title,
+    url: source.url,
+    domain: source.domain,
+    publisher: source.publisher,
+    confidence: source.confidence,
+    retrievedAt: source.retrievedAt,
+    publishedAt: source.publishedAt,
+    dateStatus: source.dateStatus,
+    linkedFactIds: source.linkedFactIds?.slice(0, 6),
+  };
+}
+
+function compactFact(fact: ResearchEvidenceFact) {
+  return {
+    id: fact.id,
+    factType: fact.factType,
+    sourceKind: fact.sourceKind,
+    label: fact.label,
+    value:
+      typeof fact.value === "string" ? truncate(fact.value, 350) : fact.value,
+    unit: fact.unit,
+    period: fact.period,
+    filed: fact.filed,
+    form: fact.form,
+    concept: fact.concept,
+    confidence: fact.confidence,
+    allowedUse: fact.allowedUse,
+  };
+}
+
+function selectFactsForPrompt(facts: ResearchEvidenceFact[]) {
+  const officialFinancial = facts
+    .filter((fact) => fact.factType === "official-financial")
+    .slice(0, 12);
+  const filingMetadata = facts
+    .filter((fact) => fact.factType === "filing-metadata")
+    .slice(0, 5);
+  const recentOrRisk = facts
+    .filter(
+      (fact) =>
+        fact.factType === "recent-development" ||
+        fact.factType === "risk-catalyst",
+    )
+    .slice(0, 6);
+  const remainingSlots =
+    18 - officialFinancial.length - filingMetadata.length - recentOrRisk.length;
+  const marketDiscussion = facts
+    .filter((fact) => fact.factType === "market-discussion")
+    .slice(0, Math.max(0, remainingSlots));
+
+  return [
+    ...officialFinancial,
+    ...filingMetadata,
+    ...recentOrRisk,
+    ...marketDiscussion,
+  ].slice(0, 18);
+}
+
+function truncate(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+}

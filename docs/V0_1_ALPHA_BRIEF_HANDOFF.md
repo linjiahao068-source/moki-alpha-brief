@@ -532,3 +532,18 @@ Added SEC EDGAR JSON evidence support:
 - `metadata.dataMode` remains `evidence-draft`; `verified-real-data` remains forbidden.
 
 Full handoff: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
+
+### Phase 9.3: Research Evidence Context
+
+Status: completed in this iteration.
+
+Added a unified evidence context layer:
+
+- `ResearchEvidenceContext` combines Search Evidence and SEC Evidence without mixing their factual roles.
+- `sourceRegistry` provides a unified source list with confidence, source kind, source type, and linked facts.
+- `factLedger` separates official SEC financial facts, SEC filing metadata, recent search developments, risk catalysts, and low-confidence market discussion.
+- `coverage` explicitly marks missing real-time market price, consensus estimates, and company IR narrative.
+- `/generate` adds `ResearchEvidencePanel` and displays Evidence Level, Coverage, Missing Data, Source Registry Summary, and Fact Ledger Summary.
+- Prompt injection now uses compact ResearchEvidenceContext rather than separate raw search/SEC payloads.
+
+Full handoff: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.

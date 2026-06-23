@@ -1,18 +1,111 @@
-import type { BriefDocument, BriefSectionKind } from "@/types/brief";
+import type { BriefDocument, BriefSection, BriefSectionKind } from "@/types/brief";
 
-const liveDataClaimPattern =
-  /(\bSEC\b|\bIR\b|real[- ]?time|live data|market data|consensus|news search|latest filing|verified source|实时|行情|股价|一致预期|新闻检索|最新财报|已核验来源)/i;
-
-const liveDataNegationPattern =
-  /(no live data|demo|mock|not connected|without|未接入|未接|没有接入|不接入|不接|未使用|不使用|未检索|不代表|不能视为|不是|模拟|示例|待核查)/i;
+const unsupportedLiveClaimPattern =
+  /(real[- ]?time|live data|current market price|consensus estimate|verified real data|正式评级|实时股价|实时行情|一致预期|已验证真实数据)/i;
 
 export function assessBriefQuality(brief: BriefDocument): string[] {
   const warnings: string[] = [];
+  const context = brief.researchEvidenceContext;
+  const evidenceLevel = context?.evidenceLevel;
 
+  addCoreWarnings(brief, warnings);
+  addScenarioWarnings(brief, warnings);
+  addEvidenceWarnings(brief, warnings);
+  addSearchWarnings(brief, warnings);
+  addSecWarnings(brief, warnings);
+
+  if (context) {
+    if (!sourceNoteMentionsEvidenceLevel(brief)) {
+      warnings.push("Quality: sourceNote should mention evidenceLevel.");
+    }
+
+    if (
+      evidenceLevel === "search-and-sec" &&
+      !financialDeepDiveMentionsSecFacts(brief)
+    ) {
+      warnings.push(
+        "Quality: search-and-sec evidence should be reflected in Financial Deep Dive through SEC facts.",
+      );
+    }
+
+    if (
+      evidenceLevel === "search-and-sec" &&
+      !sectionMentionsEvidence(brief, "catalysts")
+    ) {
+      warnings.push(
+        "Quality: Catalysts should reference search evidence or recent-development facts.",
+      );
+    }
+
+    if (
+      evidenceLevel === "search-and-sec" &&
+      !sectionMentionsEvidence(brief, "risks")
+    ) {
+      warnings.push(
+        "Quality: Key Risks should reflect search evidence or missing coverage.",
+      );
+    }
+
+    if (!context.coverage.hasRevenueFact) {
+      warnings.push("Quality: coverage is missing a revenue fact.");
+    }
+    if (!context.coverage.hasNetIncomeFact) {
+      warnings.push("Quality: coverage is missing a net income fact.");
+    }
+    if (!context.coverage.hasEpsFact) {
+      warnings.push("Quality: coverage is missing an EPS fact.");
+    }
+  }
+
+  if (valuationLooksLikeRealTargetWithoutMarketData(brief)) {
+    warnings.push(
+      "Quality: Valuation should avoid real target-price language without real-time price or consensus data.",
+    );
+  }
+
+  if (!context && !brief.evidencePack && !brief.secEvidencePack && hasUnsupportedLiveDataClaim(brief)) {
+    warnings.push(
+      "Quality: brief appears to claim live data, SEC, IR, consensus, or verified data without evidence.",
+    );
+  }
+
+  return Array.from(new Set(warnings));
+}
+
+function addCoreWarnings(brief: BriefDocument, warnings: string[]) {
   if (!findSection(brief, "executive-view")) {
     warnings.push("Quality: missing Executive Investment View section.");
   }
+  if (!findSection(brief, "risks")) {
+    warnings.push("Quality: missing Key Risks section.");
+  }
+  if (!findSection(brief, "bottom-line")) {
+    warnings.push("Quality: missing Bottom Line section.");
+  }
+  if (!brief.sourceNote?.paragraphs?.length) {
+    warnings.push("Quality: missing Source & Method Note.");
+  }
+  if (!brief.disclaimer?.text) {
+    warnings.push("Quality: missing disclaimer text.");
+  }
+  if (!brief.metadata?.dataMode) {
+    warnings.push("Quality: missing dataMode.");
+  }
 
+  const emptySections = (brief.sections || []).filter(
+    (section) => !section.blocks?.length,
+  );
+  if (emptySections.length) {
+    warnings.push(
+      `Quality: ${emptySections.length} section(s) have no content blocks.`,
+    );
+  }
+}
+
+function addScenarioWarnings(brief: BriefDocument, warnings: string[]) {
+  if ((brief.scenarioAnalysis?.scenarios?.length ?? 0) < 3) {
+    warnings.push("Quality: scenarioAnalysis should include at least 3 scenarios.");
+  }
   if (!hasScenarioTone(brief, "bull")) {
     warnings.push("Quality: missing Bull Case scenario.");
   }
@@ -30,166 +123,79 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
       "Quality: Monitoring Dashboard should include at least 6 metrics.",
     );
   }
+}
 
-  if (!findSection(brief, "risks")) {
-    warnings.push("Quality: missing Key Risks section.");
+function addEvidenceWarnings(brief: BriefDocument, warnings: string[]) {
+  if (brief.metadata.dataMode === "verified-real-data") {
+    warnings.push("Quality: verified-real-data is not allowed in the current MVP.");
   }
 
-  if (!findSection(brief, "bottom-line")) {
-    warnings.push("Quality: missing Bottom Line section.");
+  if (
+    brief.researchEvidenceContext?.evidenceLevel === "search-and-sec" &&
+    !sourceNoteMentionsSearchAndSec(brief)
+  ) {
+    warnings.push("Quality: sourceNote should explicitly say Search + SEC Evidence Draft.");
   }
+}
 
-  if (!brief.sourceNote?.paragraphs?.length) {
-    warnings.push("Quality: missing Source & Method Note.");
+function addSearchWarnings(brief: BriefDocument, warnings: string[]) {
+  const pack = brief.evidencePack;
+  if (!pack) return;
+
+  const sourceCount = pack.newsItems?.length || pack.sources.length;
+  const sources = pack.sources || [];
+  const lowCount = sources.filter((source) => source.confidence === "low").length;
+  const highOrMediumCount = sources.filter(
+    (source) => source.confidence === "high" || source.confidence === "medium",
+  ).length;
+
+  if (sourceCount < 3) {
+    warnings.push("Quality: evidencePack should include at least 3 sources.");
   }
-
-  if (!brief.disclaimer?.text) {
-    warnings.push("Quality: missing disclaimer text.");
+  if (sources.length && lowCount / sources.length > 0.5) {
+    warnings.push("Quality: more than 50% of evidencePack sources are low confidence.");
   }
-
-  if (!brief.metadata?.dataMode) {
-    warnings.push("Quality: missing dataMode.");
+  if (sources.length && highOrMediumCount === 0) {
+    warnings.push("Quality: evidencePack has no high or medium confidence sources.");
   }
-
-  if ((brief.scenarioAnalysis?.scenarios?.length ?? 0) < 3) {
-    warnings.push("Quality: scenarioAnalysis should include at least 3 scenarios.");
-  }
-
-  const emptySections = (brief.sections || []).filter(
-    (section) => !section.blocks?.length,
-  );
-  if (emptySections.length) {
+  if (
+    sources.length &&
+    sources.every(
+      (source) => source.dateStatus === "retrieved-only" || !source.publishedAt,
+    )
+  ) {
     warnings.push(
-      `Quality: ${emptySections.length} section(s) have no content blocks.`,
+      "Quality: all evidencePack sources are retrieved-only; published dates were unavailable.",
     );
   }
+  if (!sourceNoteMentionsSearchProvider(brief)) {
+    warnings.push("Quality: sourceNote should mention searchProvider.");
+  }
+}
 
-  if (!brief.evidencePack && hasUnsupportedLiveDataClaim(brief)) {
+function addSecWarnings(brief: BriefDocument, warnings: string[]) {
+  const pack = brief.secEvidencePack;
+  if (!pack) return;
+
+  if (pack.fiscalFacts.length < 3) {
+    warnings.push("Quality: secEvidencePack should include at least 3 fiscal facts.");
+  }
+  if (pack.recentFilings.length < 1) {
+    warnings.push("Quality: secEvidencePack should include at least 1 recent filing.");
+  }
+  if (!sourceNoteMentionsCik(brief)) {
+    warnings.push("Quality: sourceNote should mention SEC CIK.");
+  }
+  if (!financialDeepDiveMentionsSecFacts(brief)) {
     warnings.push(
-      "Quality: brief appears to claim live data, SEC, IR, consensus, or news access without evidencePack.",
+      "Quality: Financial Deep Dive should reflect SEC companyfacts when secEvidencePack exists.",
     );
   }
-
-  if (brief.evidencePack) {
-    const sourceCount =
-      brief.evidencePack.newsItems?.length || brief.evidencePack.sources.length;
-    const sources = brief.evidencePack.sources || [];
-    const lowCount = sources.filter(
-      (source) => source.confidence === "low",
-    ).length;
-    const highOrMediumCount = sources.filter(
-      (source) => source.confidence === "high" || source.confidence === "medium",
-    ).length;
-
-    if (sourceCount < 3) {
-      warnings.push("Quality: evidencePack should include at least 3 sources.");
-    }
-
-    if (sources.length && lowCount / sources.length > 0.5) {
-      warnings.push(
-        "Quality: more than 50% of evidencePack sources are low confidence.",
-      );
-    }
-
-    if (sources.length && highOrMediumCount === 0) {
-      warnings.push(
-        "Quality: evidencePack has no high or medium confidence sources.",
-      );
-    }
-
-    if (
-      sources.length &&
-      sources.every(
-        (source) => source.dateStatus === "retrieved-only" || !source.publishedAt,
-      )
-    ) {
-      warnings.push(
-        "Quality: all evidencePack sources are retrieved-only; published dates were unavailable.",
-      );
-    }
-
-    if (!sourceNoteMentionsSearchProvider(brief)) {
-      warnings.push("Quality: sourceNote should mention searchProvider.");
-    }
-
-    if (!sourceNoteMentionsSearchEvidenceDraft(brief)) {
-      warnings.push("Quality: sourceNote should explicitly say Search Evidence Draft.");
-    }
-
-    if (brief.metadata.dataMode !== "evidence-draft") {
-      warnings.push(
-        "Quality: evidencePack results should use dataMode evidence-draft.",
-      );
-    }
-
-    if (sourceNoteStillSaysNoLiveData(brief)) {
-      warnings.push(
-        "Quality: evidencePack exists, so sourceNote should say Search Evidence Draft rather than only No Live Data.",
-      );
-    }
-
-    if (!sectionMentionsRecentEvidence(brief, "catalysts")) {
-      warnings.push(
-        "Quality: Catalysts should reference the recent search evidence at a high level.",
-      );
-    }
-
-    if (!sectionMentionsRecentEvidence(brief, "risks")) {
-      warnings.push(
-        "Quality: Key Risks should reference the recent search evidence at a high level.",
-      );
-    }
-
-    if (treatsLowConfidenceAsStrongFact(brief)) {
-      warnings.push(
-        "Quality: brief may be treating a low-confidence discussion or aggregator source as a strong fact.",
-      );
-    }
+  if (!hasRevenueIncomeOrEps(brief)) {
+    warnings.push(
+      "Quality: SEC companyfacts extraction may need concept fallback improvements for Revenue / Net Income / EPS.",
+    );
   }
-
-  if (brief.secEvidencePack) {
-    if (brief.secEvidencePack.fiscalFacts.length < 3) {
-      warnings.push(
-        "Quality: secEvidencePack should include at least 3 fiscal facts.",
-      );
-    }
-
-    if (brief.secEvidencePack.recentFilings.length < 1) {
-      warnings.push(
-        "Quality: secEvidencePack should include at least 1 recent filing.",
-      );
-    }
-
-    if (!sourceNoteMentionsCik(brief)) {
-      warnings.push("Quality: sourceNote should mention SEC CIK.");
-    }
-
-    if (!financialDeepDiveMentionsSecFacts(brief)) {
-      warnings.push(
-        "Quality: Financial Deep Dive should reflect SEC companyfacts when secEvidencePack exists.",
-      );
-    }
-
-    if (!hasRevenueIncomeOrEps(brief)) {
-      warnings.push(
-        "Quality: SEC companyfacts extraction may need concept fallback improvements for Revenue / Net Income / EPS.",
-      );
-    }
-
-    if (usesSimulatedFinancialsWithSecFacts(brief)) {
-      warnings.push(
-        "Quality: brief still uses simulated financial wording even though SEC fiscal facts exist.",
-      );
-    }
-
-    if (valuationLooksLikeRealTargetWithoutMarketData(brief)) {
-      warnings.push(
-        "Quality: Valuation should avoid real target-price language without real-time price or consensus data.",
-      );
-    }
-  }
-
-  return warnings;
 }
 
 function findSection(brief: BriefDocument, kind: BriefSectionKind) {
@@ -206,115 +212,91 @@ function hasScenarioTone(brief: BriefDocument, tone: "bull" | "base" | "bear") {
 }
 
 function hasUnsupportedLiveDataClaim(brief: BriefDocument) {
-  const values = [
-    brief.metadata?.title,
-    brief.metadata?.briefType,
-    brief.metadata?.frameworkName,
-    brief.metadata?.shareLabel,
-    brief.hero?.subheadline,
-    ...(brief.sourceNote?.paragraphs ?? []),
-    brief.disclaimer?.text,
-  ];
-
-  return values
-    .filter(Boolean)
-    .join("\n")
-    .split(/[。.!?；;\n]/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean)
-    .some((sentence) => {
-      if (!liveDataClaimPattern.test(sentence)) return false;
-      return !liveDataNegationPattern.test(sentence);
-    });
+  return unsupportedLiveClaimPattern.test(getBriefText(brief));
 }
 
 function sourceNoteMentionsSearchProvider(brief: BriefDocument) {
-  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
-  return /searchprovider|search provider|搜索供应商|search evidence/.test(text);
-}
-
-function sourceNoteMentionsSearchEvidenceDraft(brief: BriefDocument) {
-  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
-  return /search evidence draft|evidence draft/.test(text);
+  const text = sourceNoteText(brief);
+  return /searchprovider|search provider|search evidence|搜索证据/i.test(text);
 }
 
 function sourceNoteMentionsCik(brief: BriefDocument) {
-  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
-  return /\bcik\b|sec evidence draft|companyfacts/.test(text);
+  const text = sourceNoteText(brief);
+  return /\bcik\b|sec evidence draft|companyfacts/i.test(text);
 }
 
-function sourceNoteStillSaysNoLiveData(brief: BriefDocument) {
-  const text = (brief.sourceNote?.paragraphs ?? []).join(" ").toLowerCase();
-  return /no live data|未接入新闻检索/.test(text) && !/search evidence|搜索证据/.test(text);
+function sourceNoteMentionsEvidenceLevel(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return /evidencelevel|evidence level|search-and-sec|search-only|sec-only/i.test(
+    text,
+  );
 }
 
-function sectionMentionsRecentEvidence(
+function sourceNoteMentionsSearchAndSec(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return /search \+ sec evidence draft|search and sec evidence draft/i.test(text);
+}
+
+function sectionMentionsEvidence(
   brief: BriefDocument,
   kind: BriefSectionKind,
 ) {
   const section = findSection(brief, kind);
   if (!section) return false;
-  const text = section.blocks
-    .flatMap((block) => {
-      if ("content" in block) return [block.content];
-      if ("items" in block) return block.items;
-      if ("metrics" in block) return block.metrics.map((metric) => metric.value);
-      return [];
-    })
-    .join(" ")
-    .toLowerCase();
-
-  return /recent|近期|搜索|source|evidence|证据|公开内容|news/.test(text);
-}
-
-function treatsLowConfidenceAsStrongFact(brief: BriefDocument) {
-  const text = brief.sections
-    .flatMap((section) =>
-      section.blocks.flatMap((block) => {
-        if ("content" in block) return [block.content];
-        if ("items" in block) return block.items;
-        if ("metrics" in block) return block.metrics.map((metric) => metric.value);
-        return [];
-      }),
-    )
-    .join(" ")
-    .toLowerCase();
-
-  return /(reddit|forum|perplexity|stocktwits|x\.com|twitter|social media|aggregator).{0,80}(confirmed|proves|shows|indicates|verified|fact)/.test(
-    text,
+  return /recent|search|source|evidence|catalyst|risk|近期|搜索|证据|来源|催化|风险/i.test(
+    sectionText(section),
   );
 }
 
 function financialDeepDiveMentionsSecFacts(brief: BriefDocument) {
   const section = findSection(brief, "financial-deep-dive");
   if (!section) return false;
-  return sectionText(section).match(/sec|companyfacts|10-k|10-q|fiscal fact|filed|cik/i);
+  return /sec|companyfacts|10-k|10-q|fiscal fact|filed|cik|company facts/i.test(
+    sectionText(section),
+  );
 }
 
 function hasRevenueIncomeOrEps(brief: BriefDocument) {
   const labels = (brief.secEvidencePack?.fiscalFacts || [])
     .map((fact) => `${fact.concept} ${fact.label}`.toLowerCase())
     .join(" ");
-  return /revenue|revenues|salesrevenuenet|netincome|earningspershare|eps/.test(labels);
-}
-
-function usesSimulatedFinancialsWithSecFacts(brief: BriefDocument) {
-  if (!brief.secEvidencePack?.fiscalFacts.length) return false;
-  const text = brief.sections.map(sectionText).join(" ").toLowerCase();
-  return /(模拟|示例|mock|待核查).{0,30}(revenue|收入|eps|net income|净利润|margin|利润率)/i.test(
-    text,
+  return /revenue|revenues|salesrevenuenet|netincome|earningspershare|eps/.test(
+    labels,
   );
 }
 
 function valuationLooksLikeRealTargetWithoutMarketData(brief: BriefDocument) {
   const section = findSection(brief, "valuation");
   if (!section) return false;
-  const text = sectionText(section).toLowerCase();
-  return /(target price|目标价|price target).{0,40}(\$|usd|美元|\d)/i.test(text) &&
-    !/(模拟|示例|n\/a|待核查|not a recommendation|非投资建议)/i.test(text);
+  const text = sectionText(section);
+  return (
+    /(target price|price target|目标价).{0,40}(\$|usd|美元|\d)/i.test(text) &&
+    !/(模拟|示例|n\/a|待核查|not a recommendation|非投资建议|缺少实时股价|一致预期)/i.test(
+      text,
+    )
+  );
 }
 
-function sectionText(section: NonNullable<ReturnType<typeof findSection>>) {
+function sourceNoteText(brief: BriefDocument) {
+  return (brief.sourceNote?.paragraphs ?? []).join(" ");
+}
+
+function getBriefText(brief: BriefDocument) {
+  return [
+    brief.metadata?.title,
+    brief.metadata?.briefType,
+    brief.metadata?.frameworkName,
+    brief.metadata?.shareLabel,
+    brief.hero?.subheadline,
+    ...brief.sections.map(sectionText),
+    ...(brief.sourceNote?.paragraphs ?? []),
+    brief.disclaimer?.text,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function sectionText(section: BriefSection) {
   return section.blocks
     .flatMap((block) => {
       if ("content" in block) return [block.content];

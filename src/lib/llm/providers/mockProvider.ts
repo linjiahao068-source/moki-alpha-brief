@@ -11,9 +11,10 @@ export async function mockProvider(
   const now = formatCstTimestamp();
   const evidencePack = input.evidencePack;
   const secEvidencePack = input.secEvidencePack;
+  const researchEvidenceContext = input.researchEvidenceContext;
   const hasEvidencePack = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
-  const hasAnyEvidence = hasEvidencePack || hasSecEvidence;
+  const hasAnyEvidence = Boolean(researchEvidenceContext) || hasEvidencePack || hasSecEvidence;
 
   const baseBrief = cloneBrief(nvdaBrief);
   const brief =
@@ -37,7 +38,11 @@ export async function mockProvider(
     brand: "Moki",
     product: "Moki Alpha Brief",
     shareLabel: hasAnyEvidence
-      ? getEvidenceLabel(hasEvidencePack, hasSecEvidence)
+      ? getEvidenceLabel(
+          hasEvidencePack,
+          hasSecEvidence,
+          researchEvidenceContext?.evidenceLevel,
+        )
       : "LLM Demo Preview",
   };
   brief.hero = {
@@ -47,7 +52,11 @@ export async function mockProvider(
     badges: hasAnyEvidence
       ? [
           {
-            label: getEvidenceLabel(hasEvidencePack, hasSecEvidence),
+            label: getEvidenceLabel(
+              hasEvidencePack,
+              hasSecEvidence,
+              researchEvidenceContext?.evidenceLevel,
+            ),
             tone: "brand",
           },
           {
@@ -88,6 +97,8 @@ export async function mockProvider(
   };
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
+  brief.researchEvidenceContext = researchEvidenceContext;
+  brief.evidenceSummary = researchEvidenceContext?.coverage;
 
   const issues = validateBriefDocument(brief);
 
@@ -107,7 +118,14 @@ function inferModelMode(model: string | undefined) {
   return model === "deepseek-reasoner" ? "reasoner" : "chat";
 }
 
-function getEvidenceLabel(hasSearchEvidence: boolean, hasSecEvidence: boolean) {
+function getEvidenceLabel(
+  hasSearchEvidence: boolean,
+  hasSecEvidence: boolean,
+  evidenceLevel?: string,
+) {
+  if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
+  if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
+  if (evidenceLevel === "search-only") return "Search Evidence Draft";
   if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
   if (hasSecEvidence) return "SEC Evidence Draft";
   if (hasSearchEvidence) return "Search Evidence Draft";
@@ -124,6 +142,18 @@ function buildMockEvidenceSourceNote({
   now: string;
 }) {
   const parts: string[] = [];
+  const evidenceLevel =
+    evidencePack && secEvidencePack
+      ? "search-and-sec"
+      : secEvidencePack
+        ? "sec-only"
+        : evidencePack
+          ? "search-only"
+          : "none";
+
+  if (evidenceLevel !== "none") {
+    parts.push(`Research Evidence Context: evidenceLevel=${evidenceLevel}; dataMode=evidence-draft.`);
+  }
 
   if (evidencePack) {
     parts.push(
