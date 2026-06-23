@@ -42,10 +42,11 @@ function validateRootFields(brief: BriefDocument, issues: string[]) {
     !brief.evidencePack &&
     !brief.secEvidencePack &&
     !brief.irEvidencePack &&
+    !brief.marketEvidencePack &&
     !brief.researchEvidenceContext
   ) {
     issues.push(
-      "evidence-draft requires evidencePack, secEvidencePack, irEvidencePack, or researchEvidenceContext",
+      "evidence-draft requires evidencePack, secEvidencePack, irEvidencePack, marketEvidencePack, or researchEvidenceContext",
     );
   }
 }
@@ -130,6 +131,34 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     }
   }
 
+  if (brief.marketEvidencePack) {
+    if (brief.marketEvidencePack.dataMode !== "evidence-draft") {
+      issues.push("marketEvidencePack.dataMode must be evidence-draft");
+    }
+    if (brief.marketEvidencePack.provider !== "mock" && brief.marketEvidencePack.provider !== "global-stock-data") {
+      issues.push("marketEvidencePack.provider is invalid");
+    }
+    if (!brief.marketEvidencePack.sources?.length) {
+      issues.push("marketEvidencePack.sources is required");
+    }
+    if (brief.marketEvidencePack.quote) {
+      if (!brief.marketEvidencePack.quote.provider) {
+        issues.push("marketEvidencePack.quote.provider is required");
+      }
+      if (!brief.marketEvidencePack.quote.retrievedAt) {
+        issues.push("marketEvidencePack.quote.retrievedAt is required");
+      }
+      if (
+        !brief.marketEvidencePack.quote.marketTimestamp &&
+        brief.marketEvidencePack.quote.dateStatus !== "retrieved-only"
+      ) {
+        issues.push(
+          "marketEvidencePack.quote.dateStatus must be retrieved-only when marketTimestamp is missing",
+        );
+      }
+    }
+  }
+
   const context = brief.researchEvidenceContext;
   if (!context) return;
 
@@ -146,50 +175,66 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     issues.push("researchEvidenceContext.coverage is required");
   }
 
-  if (context.evidenceLevel === "search-and-sec") {
-    if (!brief.evidencePack && !context.searchEvidencePack) {
-      issues.push("search-and-sec evidenceLevel requires search evidence");
-    }
-    if (!brief.secEvidencePack && !context.secEvidencePack) {
-      issues.push("search-and-sec evidenceLevel requires SEC evidence");
-    }
-  }
-
-  if (context.evidenceLevel === "search-sec-and-ir") {
-    if (!brief.evidencePack && !context.searchEvidencePack) {
-      issues.push("search-sec-and-ir evidenceLevel requires search evidence");
-    }
-    if (!brief.secEvidencePack && !context.secEvidencePack) {
-      issues.push("search-sec-and-ir evidenceLevel requires SEC evidence");
-    }
-    if (!brief.irEvidencePack && !context.irEvidencePack) {
-      issues.push("search-sec-and-ir evidenceLevel requires IR evidence");
-    }
-  }
-
   if (
-    (context.evidenceLevel === "ir-only" ||
-      context.evidenceLevel === "search-and-ir" ||
-      context.evidenceLevel === "sec-and-ir") &&
+    evidenceLevelIncludesSearch(context.evidenceLevel) &&
+    !brief.evidencePack &&
+    !context.searchEvidencePack
+  ) {
+    issues.push(`${context.evidenceLevel} evidenceLevel requires search evidence`);
+  }
+  if (
+    evidenceLevelIncludesSec(context.evidenceLevel) &&
+    !brief.secEvidencePack &&
+    !context.secEvidencePack
+  ) {
+    issues.push(`${context.evidenceLevel} evidenceLevel requires SEC evidence`);
+  }
+  if (
+    evidenceLevelIncludesIr(context.evidenceLevel) &&
     !brief.irEvidencePack &&
     !context.irEvidencePack
   ) {
     issues.push(`${context.evidenceLevel} evidenceLevel requires IR evidence`);
   }
+  if (
+    evidenceLevelIncludesMarket(context.evidenceLevel) &&
+    !brief.marketEvidencePack &&
+    !context.marketEvidencePack
+  ) {
+    issues.push(`${context.evidenceLevel} evidenceLevel requires market evidence`);
+  }
 }
 
 function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
   const text = getBoundaryText(brief);
+  const fullText = getFullBriefText(brief);
   const level = brief.researchEvidenceContext?.evidenceLevel;
   const hasIrEvidence = evidenceLevelIncludesIr(level) || Boolean(brief.irEvidencePack);
+  const hasMarketEvidence =
+    evidenceLevelIncludesMarket(level) || Boolean(brief.marketEvidencePack);
 
   if (/verified-real-data/i.test(text)) {
     issues.push("brief text must not display verified-real-data");
   }
 
   if (
+    brief.researchEvidenceContext?.coverage.hasConsensus === false &&
+    claimsConsensusConnected(fullText)
+  ) {
+    issues.push("brief must not claim consensus estimates are connected");
+  }
+
+  if (claimsFormalTargetOrRating(fullText)) {
+    issues.push("brief must not output a formal rating or formal target price");
+  }
+
+  if (
     (level === "search-and-sec" ||
       level === "search-sec-and-ir" ||
+      level === "search-sec-ir-and-market" ||
+      level === "search-sec-and-market" ||
+      level === "sec-ir-and-market" ||
+      level === "sec-and-market" ||
       level === "sec-and-ir" ||
       level === "sec-only" ||
       brief.secEvidencePack) &&
@@ -212,6 +257,19 @@ function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
     issues.push("sourceNote must mention Search + SEC + IR Evidence Draft");
   }
 
+  if (
+    level === "search-sec-ir-and-market" &&
+    !/search \+ sec \+ ir \+ market evidence draft|search.*sec.*ir.*market evidence draft/i.test(text)
+  ) {
+    issues.push("sourceNote must mention Search + SEC + IR + Market Evidence Draft");
+  }
+
+  if (hasMarketEvidence && claimsNoMarketEvidence(text)) {
+    issues.push(
+      "sourceNote contradicts Market evidence by saying real-time market price or market evidence is not connected",
+    );
+  }
+
   if (hasIrEvidence && claimsNoCompanyIr(text)) {
     issues.push("sourceNote contradicts IR evidence by saying Company IR is not connected");
   }
@@ -222,12 +280,14 @@ function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
 
   if (
     brief.metadata?.dataMode === "evidence-draft" &&
-    !mentionsMissingMarketBoundaries(text, hasIrEvidence)
+    !mentionsMissingMarketBoundaries(text, hasIrEvidence, hasMarketEvidence)
   ) {
     issues.push(
-      hasIrEvidence
-        ? "sourceNote must mention missing real-time price, consensus, database, and manual verification coverage"
-        : "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
+      hasMarketEvidence
+        ? "sourceNote must mention market evidence delay/incomplete caveat plus missing consensus, database, and manual verification coverage"
+        : hasIrEvidence
+          ? "sourceNote must mention missing real-time price, consensus, database, and manual verification coverage"
+          : "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
     );
   }
 }
@@ -238,6 +298,45 @@ function getBoundaryText(brief: BriefDocument) {
     ...(brief.hero?.badges || []).map((badge) => badge.label),
     ...(brief.sourceNote?.paragraphs || []),
     brief.disclaimer?.text,
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+}
+
+function getFullBriefText(brief: BriefDocument) {
+  return [
+    getBoundaryText(brief),
+    ...(brief.sections || []).flatMap((section) =>
+      (section.blocks || []).flatMap((block) => {
+        if ("content" in block) return [block.content];
+        if ("items" in block) return block.items;
+        if ("metrics" in block) {
+          return block.metrics.flatMap((metric) => [
+            metric.label,
+            metric.value,
+            metric.detail || "",
+          ]);
+        }
+        return [];
+      }),
+    ),
+    ...(brief.scenarioAnalysis?.scenarios || []).flatMap((scenario) => [
+      scenario.name,
+      scenario.label,
+      scenario.keyAssumptions,
+      scenario.targetPrice,
+      scenario.impliedReturn,
+      scenario.operatingSetup || "",
+      scenario.trigger || "",
+    ]),
+    ...(brief.monitoringDashboard?.metrics || []).flatMap((metric) => [
+      metric.metric,
+      metric.whyItMatters,
+      metric.threshold,
+      metric.status || "",
+      metric.cadence || "",
+    ]),
   ]
     .filter(Boolean)
     .join("\n")
@@ -266,6 +365,17 @@ function claimsNoCompanyIr(text: string) {
   return true;
 }
 
+function claimsNoMarketEvidence(text: string) {
+  const noMarketClaim =
+    /no real-time market price|without real-time market price|market evidence.*not connected|market price.*not connected|real-time market price.*not connected|未接实时股价|未接入实时股价/.test(
+      text,
+    );
+  if (!noMarketClaim) return false;
+  return !/market evidence draft|marketprovider|third-party free market|free public market data|market data may be delayed/i.test(
+    text,
+  );
+}
+
 function treatsIrAsConsensus(text: string) {
   const cleaned = text
     .replace(/must not[^.]{0,220}consensus/gi, "")
@@ -277,7 +387,46 @@ function treatsIrAsConsensus(text: string) {
   );
 }
 
-function mentionsMissingMarketBoundaries(text: string, hasIrEvidence: boolean) {
+function claimsConsensusConnected(text: string) {
+  const cleaned = text
+    .replace(/no consensus estimates/gi, "")
+    .replace(/consensus[^.]{0,120}(not connected|missing|not available)/gi, "")
+    .replace(/未接.{0,20}一致预期/gi, "");
+
+  return /(consensus estimates? (are )?(connected|attached|available)|已接.{0,20}一致预期|一致预期.{0,20}(已接|已连接|可用))/i.test(
+    cleaned,
+  );
+}
+
+function claimsFormalTargetOrRating(text: string) {
+  const cleaned = text
+    .replace(/not a formal rating/gi, "")
+    .replace(/not investment advice/gi, "")
+    .replace(/不构成投资建议/g, "")
+    .replace(/不得输出正式目标价/g, "")
+    .replace(/no formal rating/gi, "");
+
+  return /(formal rating|rating:\s*(buy|sell|hold|neutral|overweight|underweight)|\b(buy|sell|hold)\b recommendation|正式评级|买入评级|卖出评级|持有评级|目标价[:：]?\s*(\$|usd|hkd|港元|美元|\d))/i.test(
+    cleaned,
+  );
+}
+
+function mentionsMissingMarketBoundaries(
+  text: string,
+  hasIrEvidence: boolean,
+  hasMarketEvidence: boolean,
+) {
+  if (hasMarketEvidence) {
+    return (
+      /(market evidence draft|marketprovider|third-party free market|free public market data|market data may be delayed|delayed or incomplete)/i.test(
+        text,
+      ) &&
+      /(consensus|consensus estimates)/i.test(text) &&
+      /(database|database save)/i.test(text) &&
+      /(manual verification|人工校验|人工核验)/i.test(text)
+    );
+  }
+
   const hasCoreMissing =
     /(real-time price|market price|real-time market price)/i.test(text) &&
     /(consensus|consensus estimates)/i.test(text) &&
@@ -296,4 +445,16 @@ function mentionsMissingMarketBoundaries(text: string, hasIrEvidence: boolean) {
 
 function evidenceLevelIncludesIr(level: string | undefined) {
   return Boolean(level && /\bir\b/i.test(level));
+}
+
+function evidenceLevelIncludesSearch(level: string | undefined) {
+  return Boolean(level && /search/i.test(level));
+}
+
+function evidenceLevelIncludesSec(level: string | undefined) {
+  return Boolean(level && /\bsec\b/i.test(level));
+}
+
+function evidenceLevelIncludesMarket(level: string | undefined) {
+  return Boolean(level && /market/i.test(level));
 }

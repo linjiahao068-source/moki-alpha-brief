@@ -433,3 +433,42 @@ New coverage fields:
 IR evidence is an evidence draft for company official narrative, management commentary, business updates, and company guidance context. It cannot be treated as SEC official-financial data, consensus estimates, real-time market price, or `verified-real-data`.
 
 See: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.
+
+## Phase 9.5 Market Evidence Extension
+
+`BriefDocument` now supports an optional `marketEvidencePack` alongside search `evidencePack`, `secEvidencePack`, `irEvidencePack`, and `researchEvidenceContext`.
+
+`MarketEvidencePack` includes:
+
+- `ticker`
+- `companyName`
+- `provider`
+- `dataMode`
+- `quote`
+- `priceHistory`
+- `sources`
+- `warnings`
+
+`MarketQuote` includes normalized quote context such as price, previous close, open, high, low, volume, change, percent change, market cap, currency, exchange, `marketTimestamp`, `retrievedAt`, `dateStatus`, and `confidence`.
+
+New `ResearchEvidenceContext.evidenceLevel` values:
+
+- `market-only`
+- `search-and-market`
+- `sec-and-market`
+- `ir-and-market`
+- `search-sec-and-market`
+- `search-ir-and-market`
+- `sec-ir-and-market`
+- `search-sec-ir-and-market`
+
+New coverage fields:
+
+- `hasMarketPrice`
+- `hasMarketVolume`
+- `hasMarketPriceHistory`
+- `hasMarketCap`
+
+Market evidence is an evidence draft for third-party free market context only. It cannot be treated as SEC official-financial data, consensus estimates, a formal trading quote, a formal rating, a trading signal, or verified-real-data.
+
+See: `docs/V0_1_MARKET_DATA_MVP.md`.

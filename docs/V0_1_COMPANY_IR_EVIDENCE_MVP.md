@@ -170,3 +170,20 @@ IR_MAX_RESULTS=5
 ```
 
 `IR_PROVIDER=search` uses Tavily through the existing search provider capability. No new API key is introduced.
+
+## Phase 9.5 Market Evidence Follow-up
+
+Phase 9.5 keeps Company IR evidence unchanged and adds a separate `MarketEvidencePack`.
+
+IR evidence remains company official narrative / management commentary / business-update / company guidance context only.
+
+Market evidence remains quote / volume / recent daily kline context only.
+
+The two evidence classes must not be merged:
+
+- IR evidence is not SEC official-financial data.
+- IR guidance is not consensus.
+- Market evidence is not consensus.
+- Market evidence is not a formal trading quote or trading signal.
+
+See: `docs/V0_1_MARKET_DATA_MVP.md`.

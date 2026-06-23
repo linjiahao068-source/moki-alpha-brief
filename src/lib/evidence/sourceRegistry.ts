@@ -2,6 +2,7 @@ import type {
   EvidencePack,
   EvidenceSourceType,
   IrEvidencePack,
+  MarketEvidencePack,
   ResearchEvidenceSource,
   SecEvidencePack,
 } from "@/types/evidence";
@@ -10,10 +11,12 @@ export function buildSourceRegistry({
   searchEvidencePack,
   secEvidencePack,
   irEvidencePack,
+  marketEvidencePack,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
+  marketEvidencePack?: MarketEvidencePack;
 }): ResearchEvidenceSource[] {
   const searchSources =
     searchEvidencePack?.sources.map((source) => ({
@@ -67,7 +70,26 @@ export function buildSourceRegistry({
       linkedFactIds: [],
     })) || [];
 
-  return [...searchSources, ...secSources, ...irSources];
+  const marketSources =
+    marketEvidencePack?.sources.map((source) => ({
+      id: getMarketSourceId(source.id),
+      sourceKind:
+        marketEvidencePack.provider === "mock"
+          ? ("mock" as const)
+          : ("market" as const),
+      sourceType: "market-data" as const,
+      title: source.title,
+      url: source.url,
+      domain: source.domain,
+      publisher: source.publisher,
+      confidence: source.confidence,
+      retrievedAt: source.retrievedAt,
+      publishedAt: source.publishedAt,
+      dateStatus: source.dateStatus,
+      linkedFactIds: [],
+    })) || [];
+
+  return [...searchSources, ...secSources, ...irSources, ...marketSources];
 }
 
 export function getSearchSourceId(sourceId?: string) {
@@ -80,6 +102,10 @@ export function getSecSourceId(sourceId?: string) {
 
 export function getIrSourceId(sourceId?: string) {
   return `ir-${sourceId || "unknown"}`;
+}
+
+export function getMarketSourceId(sourceId?: string) {
+  return `market-${sourceId || "unknown"}`;
 }
 
 function normalizeSearchSourceType(sourceType: EvidenceSourceType) {

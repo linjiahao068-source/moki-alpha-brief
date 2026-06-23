@@ -13,23 +13,28 @@ export async function mockProvider(
   const evidencePack = input.evidencePack;
   const secEvidencePack = input.secEvidencePack;
   const irEvidencePack = input.irEvidencePack;
+  const marketEvidencePack = input.marketEvidencePack;
   const researchEvidenceContext = input.researchEvidenceContext;
   const hasEvidencePack = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
   const hasIrEvidence = Boolean(irEvidencePack);
+  const hasMarketEvidence = Boolean(marketEvidencePack);
   const hasAnyEvidence =
     Boolean(researchEvidenceContext) ||
     hasEvidencePack ||
     hasSecEvidence ||
-    hasIrEvidence;
+    hasIrEvidence ||
+    hasMarketEvidence;
   const evidenceStatus = getEvidenceStatusCopy({
     evidenceLevel: researchEvidenceContext?.evidenceLevel,
     hasSearchEvidence: hasEvidencePack,
     hasSecEvidence,
     hasIrEvidence,
+    hasMarketEvidence,
     searchProvider: evidencePack?.searchProvider,
     secProvider: secEvidencePack?.provider,
     irProvider: irEvidencePack?.provider,
+    marketProvider: marketEvidencePack?.provider,
   });
 
   const baseBrief = cloneBrief(nvdaBrief);
@@ -92,6 +97,7 @@ export async function mockProvider(
             evidencePack,
             secEvidencePack,
             irEvidencePack,
+            marketEvidencePack,
             researchEvidenceContext,
             now,
           }),
@@ -109,6 +115,7 @@ export async function mockProvider(
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
   brief.irEvidencePack = irEvidencePack;
+  brief.marketEvidencePack = marketEvidencePack;
   brief.researchEvidenceContext = researchEvidenceContext;
   brief.evidenceSummary = researchEvidenceContext?.coverage;
 
@@ -131,6 +138,7 @@ function inferModelMode(model: string | undefined) {
 }
 
 function getMockEvidenceBadgeLabel(input: GenerateBriefInput) {
+  if (input.marketEvidencePack?.provider === "mock") return "Mock Market Evidence";
   if (input.secEvidencePack?.provider === "mock" && input.irEvidencePack?.provider === "mock") {
     return "Mock SEC + IR Evidence";
   }
@@ -143,37 +151,65 @@ function buildMockEvidenceSourceNote({
   evidencePack,
   secEvidencePack,
   irEvidencePack,
+  marketEvidencePack,
   researchEvidenceContext,
   now,
 }: {
   evidencePack: GenerateBriefInput["evidencePack"];
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
   irEvidencePack: GenerateBriefInput["irEvidencePack"];
+  marketEvidencePack: GenerateBriefInput["marketEvidencePack"];
   researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const parts: string[] = [];
   const evidenceLevel =
     researchEvidenceContext?.evidenceLevel ||
-    (evidencePack && secEvidencePack && irEvidencePack
+    (evidencePack && secEvidencePack && irEvidencePack && marketEvidencePack
+      ? "search-sec-ir-and-market"
+      : evidencePack && secEvidencePack && marketEvidencePack
+        ? "search-sec-and-market"
+        : evidencePack && irEvidencePack && marketEvidencePack
+          ? "search-ir-and-market"
+          : secEvidencePack && irEvidencePack && marketEvidencePack
+            ? "sec-ir-and-market"
+            : evidencePack && secEvidencePack && irEvidencePack
       ? "search-sec-and-ir"
-      : evidencePack && secEvidencePack
-        ? "search-and-sec"
-        : evidencePack && irEvidencePack
-          ? "search-and-ir"
-          : secEvidencePack && irEvidencePack
-            ? "sec-and-ir"
-            : secEvidencePack
-              ? "sec-only"
-              : evidencePack
-                ? "search-only"
-                : irEvidencePack
-                  ? "ir-only"
-                  : "none");
+            : evidencePack && secEvidencePack
+              ? "search-and-sec"
+              : evidencePack && irEvidencePack
+                ? "search-and-ir"
+                : evidencePack && marketEvidencePack
+                  ? "search-and-market"
+                  : secEvidencePack && irEvidencePack
+                    ? "sec-and-ir"
+                    : secEvidencePack && marketEvidencePack
+                      ? "sec-and-market"
+                      : irEvidencePack && marketEvidencePack
+                        ? "ir-and-market"
+                        : secEvidencePack
+                          ? "sec-only"
+                          : evidencePack
+                            ? "search-only"
+                            : irEvidencePack
+                              ? "ir-only"
+                              : marketEvidencePack
+                                ? "market-only"
+                                : "none");
 
-  if (evidenceLevel === "search-sec-and-ir") {
+  if (evidenceLevel === "search-sec-ir-and-market") {
+    parts.push(
+      "Search + SEC + IR + Market Evidence Draft: search evidence, SEC companyfacts / submissions, Company IR / earnings-release evidence, and third-party free market evidence are attached.",
+    );
+  } else if (evidenceLevel === "search-sec-and-ir") {
     parts.push(
       "Search + SEC + IR Evidence Draft: search evidence, SEC companyfacts / submissions, and Company IR / earnings-release evidence are attached.",
+    );
+  } else if (evidenceLevel === "market-only") {
+    parts.push("Market Evidence Draft: third-party free market evidence is attached.");
+  } else if (evidenceLevel.includes("market")) {
+    parts.push(
+      "Market Evidence Draft: third-party free market evidence is attached for price, volume, and recent daily kline context.",
     );
   } else if (evidenceLevel === "search-and-sec") {
     parts.push(
@@ -217,8 +253,17 @@ function buildMockEvidenceSourceNote({
     parts.push("Company IR / earnings-release evidence is not connected.");
   }
 
+  if (marketEvidencePack) {
+    const quote = marketEvidencePack.quote;
+    parts.push(
+      `Market Evidence Draft: marketProvider=${marketEvidencePack.provider}; retrievedAt=${quote?.retrievedAt || marketEvidencePack.asOf || now}; marketTimestamp=${quote?.marketTimestamp || "N/A"}; sourceCount=${marketEvidencePack.sources.length}; priceHistoryPoints=${marketEvidencePack.priceHistory?.length || 0}. Free public market data may be delayed or incomplete.`,
+    );
+  }
+
   parts.push(
-    "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence is management-commentary / business-update context only and must not be treated as SEC official financial facts, consensus, or real-time market data.",
+    marketEvidencePack
+      ? "Current scope still excludes consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence is management-commentary / business-update context only and must not be treated as SEC official financial facts or consensus. Market evidence is third-party free market context only and is not verification-grade data, a formal trading quote, or investment advice."
+      : "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence is management-commentary / business-update context only and must not be treated as SEC official financial facts or consensus.",
   );
 
   return parts.join(" ");

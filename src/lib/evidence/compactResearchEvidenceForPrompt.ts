@@ -3,6 +3,7 @@ import type {
   ResearchEvidenceFact,
   ResearchEvidenceSource,
 } from "@/types/evidence";
+import { compactMarketEvidenceForPrompt } from "@/lib/market/compactMarketEvidenceForPrompt";
 
 export function compactResearchEvidenceForPrompt(
   context: ResearchEvidenceContext,
@@ -19,6 +20,7 @@ export function compactResearchEvidenceForPrompt(
     warnings: (context.warnings || []).slice(0, 5),
     sourceRegistry: context.sourceRegistry.slice(0, 8).map(compactSource),
     factLedger: factLedger.map(compactFact),
+    marketEvidence: compactMarketEvidenceForPrompt(context.marketEvidencePack),
   };
 }
 
@@ -79,12 +81,22 @@ function selectFactsForPrompt(facts: ResearchEvidenceFact[]) {
         fact.factType === "business-update",
     )
     .slice(0, 8);
+  const marketFacts = facts
+    .filter(
+      (fact) =>
+        fact.factType === "market-price" ||
+        fact.factType === "market-volume" ||
+        fact.factType === "market-price-history" ||
+        fact.factType === "market-valuation-context",
+    )
+    .slice(0, 5);
   const remainingSlots =
     22 -
     officialFinancial.length -
     filingMetadata.length -
     recentOrRisk.length -
-    irFacts.length;
+    irFacts.length -
+    marketFacts.length;
   const marketDiscussion = facts
     .filter((fact) => fact.factType === "market-discussion")
     .slice(0, Math.max(0, remainingSlots));
@@ -94,6 +106,7 @@ function selectFactsForPrompt(facts: ResearchEvidenceFact[]) {
     ...filingMetadata,
     ...recentOrRisk,
     ...irFacts,
+    ...marketFacts,
     ...marketDiscussion,
   ].slice(0, 22);
 }

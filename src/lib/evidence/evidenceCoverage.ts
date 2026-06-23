@@ -2,6 +2,7 @@ import type {
   EvidenceCoverageSummary,
   EvidencePack,
   IrEvidencePack,
+  MarketEvidencePack,
   ResearchEvidenceFact,
   SecEvidencePack,
 } from "@/types/evidence";
@@ -10,11 +11,13 @@ export function buildEvidenceCoverage({
   searchEvidencePack,
   secEvidencePack,
   irEvidencePack,
+  marketEvidencePack,
   factLedger,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
+  marketEvidencePack?: MarketEvidencePack;
   factLedger: ResearchEvidenceFact[];
 }): EvidenceCoverageSummary {
   const hasSearchEvidence = Boolean(searchEvidencePack?.newsItems?.length);
@@ -41,12 +44,32 @@ export function buildEvidenceCoverage({
   const hasGuidanceContext = factLedger.some(
     (fact) => fact.factType === "company-guidance-context",
   );
-  const missing = ["real-time market price", "consensus estimates"];
+  const hasMarketPrice = Boolean(marketEvidencePack?.quote?.price !== undefined);
+  const hasMarketVolume = Boolean(marketEvidencePack?.quote?.volume !== undefined);
+  const hasMarketPriceHistory = Boolean(marketEvidencePack?.priceHistory?.length);
+  const hasMarketCap = Boolean(marketEvidencePack?.quote?.marketCap !== undefined);
+  const missing = ["consensus estimates"];
   const warnings: string[] = [];
 
+  if (!hasMarketPrice) missing.unshift("real-time market price");
   if (!hasCompanyIr) missing.push("company IR narrative");
   if (!hasSearchEvidence) missing.push("recent public web context");
   if (!hasSecEvidence) missing.push("SEC companyfacts / submissions");
+  if (marketEvidencePack && !hasMarketVolume) {
+    warnings.push("Market evidence has no volume field.");
+  }
+  if (marketEvidencePack && !hasMarketPriceHistory) {
+    warnings.push("Market evidence has no recent daily price history.");
+  }
+  if (
+    marketEvidencePack?.quote &&
+    !marketEvidencePack.quote.marketTimestamp &&
+    marketEvidencePack.quote.dateStatus === "retrieved-only"
+  ) {
+    warnings.push(
+      "Market evidence is retrieved-only; public quote timestamp may be delayed or unavailable.",
+    );
+  }
   if (hasCompanyIr && !hasEarningsRelease) {
     warnings.push("IR evidence has no earnings-release or quarterly-results item.");
   }
@@ -85,7 +108,10 @@ export function buildEvidenceCoverage({
     hasRevenueFact,
     hasNetIncomeFact,
     hasEpsFact,
-    hasMarketPrice: false,
+    hasMarketPrice,
+    hasMarketVolume,
+    hasMarketPriceHistory,
+    hasMarketCap,
     hasConsensus: false,
     hasCompanyIr,
     hasEarningsRelease,

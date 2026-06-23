@@ -59,8 +59,12 @@ export function BriefContent({ brief }: BriefContentProps) {
             evidenceLevel={brief.researchEvidenceContext?.evidenceLevel}
             hasEvidencePack={Boolean(brief.evidencePack)}
             hasSecEvidencePack={Boolean(brief.secEvidencePack)}
+            hasIrEvidencePack={Boolean(brief.irEvidencePack)}
+            hasMarketEvidencePack={Boolean(brief.marketEvidencePack)}
             searchProvider={brief.evidencePack?.searchProvider}
             secProvider={brief.secEvidencePack?.provider}
+            irProvider={brief.irEvidencePack?.provider}
+            marketProvider={brief.marketEvidencePack?.provider}
             sourceNote={brief.sourceNote}
           />
         </div>

@@ -3,27 +3,37 @@ import type {
   EvidencePack,
   IrEvidenceItem,
   IrEvidencePack,
+  MarketEvidencePack,
+  MarketPricePoint,
   ResearchEvidenceFact,
   SecEvidencePack,
   SecFiscalFact,
   SecFilingSummary,
 } from "@/types/evidence";
-import { getIrSourceId, getSearchSourceId, getSecSourceId } from "./sourceRegistry";
+import {
+  getIrSourceId,
+  getMarketSourceId,
+  getSearchSourceId,
+  getSecSourceId,
+} from "./sourceRegistry";
 
 export function buildFactLedger({
   searchEvidencePack,
   secEvidencePack,
   irEvidencePack,
+  marketEvidencePack,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
+  marketEvidencePack?: MarketEvidencePack;
 }): ResearchEvidenceFact[] {
   return [
     ...buildSecFinancialFacts(secEvidencePack),
     ...buildSecFilingFacts(secEvidencePack),
     ...buildSearchFacts(searchEvidencePack),
     ...buildIrFacts(irEvidencePack),
+    ...buildMarketFacts(marketEvidencePack),
   ];
 }
 
@@ -190,6 +200,102 @@ function getIrAllowedUse(
     return "management-commentary";
   }
   return "context-only";
+}
+
+function buildMarketFacts(marketEvidencePack?: MarketEvidencePack) {
+  if (!marketEvidencePack) return [];
+
+  const quote = marketEvidencePack.quote;
+  const sourceKind =
+    marketEvidencePack.provider === "mock" ? ("mock" as const) : ("market" as const);
+  const sourceId = getMarketSourceId(
+    marketEvidencePack.sources[0]?.id || "market-data",
+  );
+  const facts: ResearchEvidenceFact[] = [];
+
+  if (quote?.price !== undefined) {
+    facts.push({
+      id: "market-price-1",
+      factType: "market-price",
+      sourceKind,
+      sourceId,
+      label: `${quote.symbol} market price context`,
+      value: quote.price,
+      unit: quote.currency,
+      period: quote.marketTimestamp || quote.retrievedAt,
+      confidence: "medium",
+      allowedUse: "market-context",
+      note:
+        "Third-party free market evidence. Use as delayed/incomplete market context only, not an official trading quote or recommendation.",
+    });
+  }
+
+  if (quote?.volume !== undefined) {
+    facts.push({
+      id: "market-volume-1",
+      factType: "market-volume",
+      sourceKind,
+      sourceId,
+      label: `${quote.symbol} market volume context`,
+      value: quote.volume,
+      unit: "shares",
+      period: quote.marketTimestamp || quote.retrievedAt,
+      confidence: "medium",
+      allowedUse: "monitoring-dashboard",
+      note:
+        "Third-party free market evidence. Use volume as monitoring context only.",
+    });
+  }
+
+  if (quote?.marketCap !== undefined || quote?.peRatio !== undefined) {
+    facts.push({
+      id: "market-valuation-context-1",
+      factType: "market-valuation-context",
+      sourceKind,
+      sourceId,
+      label: `${quote.symbol} valuation context`,
+      value: [
+        quote.marketCap !== undefined ? `marketCap=${quote.marketCap}` : "",
+        quote.peRatio !== undefined ? `peRatio=${quote.peRatio}` : "",
+      ]
+        .filter(Boolean)
+        .join("; "),
+      unit: quote.currency,
+      period: quote.marketTimestamp || quote.retrievedAt,
+      confidence: "medium",
+      allowedUse: "valuation-context",
+      note:
+        "Market valuation context only. Do not use it to produce a formal target price, formal rating, or buy/sell signal.",
+    });
+  }
+
+  const historySummary = summarizeHistory(marketEvidencePack.priceHistory || []);
+  if (historySummary) {
+    facts.push({
+      id: "market-price-history-1",
+      factType: "market-price-history",
+      sourceKind,
+      sourceId,
+      label: `${quote?.symbol || marketEvidencePack.ticker} recent daily price history`,
+      value: historySummary,
+      period: marketEvidencePack.asOf,
+      confidence: "medium",
+      allowedUse: "monitoring-dashboard",
+      note:
+        "Recent daily kline context only. Do not infer trading signals or formal recommendations.",
+    });
+  }
+
+  return facts;
+}
+
+function summarizeHistory(points: MarketPricePoint[]) {
+  const cleaned = points.filter((point) => point.date && point.close !== undefined);
+  if (!cleaned.length) return "";
+  const first = cleaned[0];
+  const last = cleaned[cleaned.length - 1];
+
+  return `${cleaned.length} daily points; first=${first.date} close=${first.close}; last=${last.date} close=${last.close}`;
 }
 
 function slugify(value: string) {

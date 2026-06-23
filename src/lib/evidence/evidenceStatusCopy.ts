@@ -1,5 +1,6 @@
 import type {
   IrProviderName,
+  MarketProviderName,
   ResearchEvidenceLevel,
   SearchProviderName,
   SecProviderName,
@@ -10,9 +11,11 @@ type EvidenceStatusCopyInput = {
   hasSearchEvidence?: boolean;
   hasSecEvidence?: boolean;
   hasIrEvidence?: boolean;
+  hasMarketEvidence?: boolean;
   searchProvider?: SearchProviderName | string;
   secProvider?: SecProviderName | string;
   irProvider?: IrProviderName | string;
+  marketProvider?: MarketProviderName | string;
 };
 
 export type EvidenceStatusCopy = {
@@ -28,15 +31,18 @@ export function getEvidenceStatusCopy({
   hasSearchEvidence = false,
   hasSecEvidence = false,
   hasIrEvidence = false,
+  hasMarketEvidence = false,
   searchProvider,
   secProvider,
   irProvider,
+  marketProvider,
 }: EvidenceStatusCopyInput): EvidenceStatusCopy {
   const level = resolveEvidenceLevel({
     evidenceLevel,
     hasSearchEvidence,
     hasSecEvidence,
     hasIrEvidence,
+    hasMarketEvidence,
   });
   const parts = getEvidenceParts(level);
   const label =
@@ -47,10 +53,13 @@ export function getEvidenceStatusCopy({
     searchProvider,
     secProvider,
     irProvider,
+    marketProvider,
     hasSearchEvidence,
     hasSecEvidence,
     hasIrEvidence,
+    hasMarketEvidence,
   });
+  const hasMarket = parts.includes("Market");
 
   if (level === "none") {
     return {
@@ -68,9 +77,11 @@ export function getEvidenceStatusCopy({
   return {
     label,
     shortDescription: `${label}: connected evidence = ${connected}. ${providerText} Missing: ${missing}. This remains evidence-draft and is not investment advice.`,
-    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, and Company IR keep separate roles: search for recent public context, SEC for official companyfacts / submissions, and IR for company official narrative or management commentary. Missing: ${missing}.`,
+    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, IR, and Market keep separate roles: search for recent public context, SEC for official companyfacts / submissions, IR for company official narrative or management commentary, and Market for third-party free quote / volume / recent daily kline context. ${hasMarket ? "Market data may be delayed or incomplete." : "Market evidence is not connected."} Missing: ${missing}.`,
     warningDescription:
-      "Research Evidence Context is still an MVP. It does not include real-time market price, consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, or transcript full-text parsing.",
+      hasMarket
+        ? "Research Evidence Context is still an MVP. Third-party free market evidence may be delayed or incomplete. Consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
+        : "Research Evidence Context is still an MVP. It does not include market evidence, consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, or transcript full-text parsing.",
     mvpLabel: "Research Evidence Context MVP",
   };
 }
@@ -80,27 +91,62 @@ function resolveEvidenceLevel({
   hasSearchEvidence,
   hasSecEvidence,
   hasIrEvidence,
+  hasMarketEvidence,
 }: Pick<
   EvidenceStatusCopyInput,
-  "evidenceLevel" | "hasSearchEvidence" | "hasSecEvidence" | "hasIrEvidence"
+  | "evidenceLevel"
+  | "hasSearchEvidence"
+  | "hasSecEvidence"
+  | "hasIrEvidence"
+  | "hasMarketEvidence"
 >): ResearchEvidenceLevel {
   if (evidenceLevel) return evidenceLevel;
+  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "search-sec-ir-and-market";
+  }
+  if (hasSearchEvidence && hasSecEvidence && hasMarketEvidence) {
+    return "search-sec-and-market";
+  }
+  if (hasSearchEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "search-ir-and-market";
+  }
+  if (hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "sec-ir-and-market";
+  }
   if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
     return "search-sec-and-ir";
   }
+  if (hasSearchEvidence && hasMarketEvidence) return "search-and-market";
+  if (hasSecEvidence && hasMarketEvidence) return "sec-and-market";
+  if (hasIrEvidence && hasMarketEvidence) return "ir-and-market";
   if (hasSearchEvidence && hasSecEvidence) return "search-and-sec";
   if (hasSearchEvidence && hasIrEvidence) return "search-and-ir";
   if (hasSecEvidence && hasIrEvidence) return "sec-and-ir";
   if (hasSearchEvidence) return "search-only";
   if (hasSecEvidence) return "sec-only";
   if (hasIrEvidence) return "ir-only";
+  if (hasMarketEvidence) return "market-only";
   return "none";
 }
 
 function getEvidenceParts(level: ResearchEvidenceLevel) {
   switch (level) {
+    case "search-sec-ir-and-market":
+      return ["Search", "SEC", "IR", "Market"];
+    case "search-sec-and-market":
+      return ["Search", "SEC", "Market"];
+    case "search-ir-and-market":
+      return ["Search", "IR", "Market"];
+    case "sec-ir-and-market":
+      return ["SEC", "IR", "Market"];
     case "search-sec-and-ir":
       return ["Search", "SEC", "IR"];
+    case "search-and-market":
+      return ["Search", "Market"];
+    case "sec-and-market":
+      return ["SEC", "Market"];
+    case "ir-and-market":
+      return ["IR", "Market"];
     case "search-and-sec":
       return ["Search", "SEC"];
     case "search-and-ir":
@@ -113,6 +159,8 @@ function getEvidenceParts(level: ResearchEvidenceLevel) {
       return ["SEC"];
     case "ir-only":
       return ["IR"];
+    case "market-only":
+      return ["Market"];
     case "none":
     default:
       return [];
@@ -120,9 +168,10 @@ function getEvidenceParts(level: ResearchEvidenceLevel) {
 }
 
 function getMissingText(level: ResearchEvidenceLevel) {
-  const missing = ["real-time market price", "consensus estimates"];
+  const missing = ["consensus estimates"];
   const parts = getEvidenceParts(level);
 
+  if (!parts.includes("Market")) missing.unshift("real-time market price");
   if (!parts.includes("Search")) missing.push("recent public web context");
   if (!parts.includes("SEC")) missing.push("SEC companyfacts / submissions");
   if (!parts.includes("IR")) missing.push("Company IR / earnings release evidence");
@@ -135,22 +184,27 @@ function getProviderText({
   searchProvider,
   secProvider,
   irProvider,
+  marketProvider,
   hasSearchEvidence,
   hasSecEvidence,
   hasIrEvidence,
+  hasMarketEvidence,
 }: Pick<
   EvidenceStatusCopyInput,
   | "searchProvider"
   | "secProvider"
   | "irProvider"
+  | "marketProvider"
   | "hasSearchEvidence"
   | "hasSecEvidence"
   | "hasIrEvidence"
+  | "hasMarketEvidence"
 >) {
   const providers = [
     hasSearchEvidence ? `searchProvider=${searchProvider || "unknown"}` : "",
     hasSecEvidence ? `secProvider=${secProvider || "unknown"}` : "",
     hasIrEvidence ? `irProvider=${irProvider || "unknown"}` : "",
+    hasMarketEvidence ? `marketProvider=${marketProvider || "unknown"}` : "",
   ].filter(Boolean);
 
   return providers.length ? `Providers: ${providers.join("; ")}.` : "";

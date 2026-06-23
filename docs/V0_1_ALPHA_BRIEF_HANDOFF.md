@@ -589,3 +589,31 @@ Important boundaries:
 - `dataMode` remains `evidence-draft`; `verified-real-data` remains forbidden.
 
 Full handoff: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.
+
+### Phase 9.5: Free Market Evidence MVP
+
+Status: completed in this iteration.
+
+Added Market Evidence support based on public `global-stock-data` request patterns:
+
+- `MarketEvidencePack`, `MarketQuote`, and `MarketPricePoint` types.
+- `src/lib/market/*` provider layer with `mock` and `global-stock-data` modes.
+- `MARKET_PROVIDER=global-stock-data`, `MARKET_MAX_DAILY_POINTS=30`, and `MARKET_DATA_REGION=auto`.
+- `POST /api/market-evidence`.
+- `POST /api/generate-brief` supports `useMarket=true`.
+- `ResearchEvidenceContext` can combine Search + SEC + IR + Market evidence.
+- New evidence levels include `market-only`, `search-and-market`, `sec-and-market`, `ir-and-market`, and `search-sec-ir-and-market`.
+- Coverage now includes Market Price, Market Volume, Market Price History, and Market Cap flags.
+- `/generate` adds `Use Market Data` and `MarketEvidencePanel`.
+- Prompt rules distinguish Search, SEC, IR, and Market roles.
+
+Important boundaries:
+
+- Market evidence is quote / volume / recent daily kline context only.
+- Market evidence is not SEC official-financial data.
+- Market evidence is not consensus.
+- Market evidence is not a formal trading quote, trading signal, formal rating, or formal target price.
+- Consensus estimates, database persistence, saved share links, and manual verification remain missing.
+- `dataMode` remains `evidence-draft`.
+
+Full handoff: `docs/V0_1_MARKET_DATA_MVP.md`.

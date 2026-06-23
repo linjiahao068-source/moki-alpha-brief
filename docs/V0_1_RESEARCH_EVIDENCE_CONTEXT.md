@@ -138,3 +138,42 @@ See: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.
 Phase 9.3.1 fixes the visible evidence status copy for `evidenceLevel=search-and-sec`. When Search Evidence and SEC Evidence are both attached, the page now says that Tavily/search evidence and SEC companyfacts / submissions are connected, while real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification are still missing.
 
 This avoids the earlier contradiction where the status cards showed `SEC Provider=sec` but explanatory copy still said SEC was not connected. The data mode remains `evidence-draft`; the page still must not display `verified-real-data`.
+
+## Phase 9.5 Market Evidence Update
+
+Phase 9.5 adds free Market Evidence based on public `global-stock-data` request patterns.
+
+New context field:
+
+- `marketEvidencePack`
+
+New evidence levels:
+
+- `market-only`
+- `search-and-market`
+- `sec-and-market`
+- `ir-and-market`
+- `search-sec-and-market`
+- `search-ir-and-market`
+- `sec-ir-and-market`
+- `search-sec-ir-and-market`
+
+New coverage flags:
+
+- `hasMarketPrice`
+- `hasMarketVolume`
+- `hasMarketPriceHistory`
+- `hasMarketCap`
+
+New fact ledger types:
+
+- `market-price`
+- `market-volume`
+- `market-price-history`
+- `market-valuation-context`
+
+Market evidence is third-party free quote / volume / recent daily kline context only. It is not SEC official-financial data, not consensus, not a formal trading quote, not a trading signal, and not verified-real-data.
+
+Consensus estimates, database save, saved share links, and manual verification remain missing.
+
+See: `docs/V0_1_MARKET_DATA_MVP.md`.

@@ -223,19 +223,23 @@ function normalizeDeepSeekBrief(
   const evidencePack = input.evidencePack;
   const secEvidencePack = input.secEvidencePack;
   const irEvidencePack = input.irEvidencePack;
+  const marketEvidencePack = input.marketEvidencePack;
   const researchEvidenceContext = input.researchEvidenceContext;
   const hasSearchEvidence = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
   const hasIrEvidence = Boolean(irEvidencePack);
+  const hasMarketEvidence = Boolean(marketEvidencePack);
   const hasAnyEvidence =
     Boolean(researchEvidenceContext) ||
     hasSearchEvidence ||
     hasSecEvidence ||
-    hasIrEvidence;
+    hasIrEvidence ||
+    hasMarketEvidence;
   const evidenceLabel = getEvidenceLabel(
     hasSearchEvidence,
     hasSecEvidence,
     hasIrEvidence,
+    hasMarketEvidence,
     researchEvidenceContext?.evidenceLevel,
   );
   const companyName =
@@ -243,6 +247,7 @@ function normalizeDeepSeekBrief(
     brief.metadata?.companyName ||
     secEvidencePack?.companyName ||
     irEvidencePack?.companyName ||
+    marketEvidencePack?.companyName ||
     `${ticker} Demo Company`;
 
   brief.schemaVersion = "0.1";
@@ -292,6 +297,7 @@ function normalizeDeepSeekBrief(
         evidencePack,
         secEvidencePack,
         irEvidencePack,
+        marketEvidencePack,
         researchEvidenceContext,
         now,
       }),
@@ -307,6 +313,7 @@ function normalizeDeepSeekBrief(
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
   brief.irEvidencePack = irEvidencePack;
+  brief.marketEvidencePack = marketEvidencePack;
   brief.researchEvidenceContext = researchEvidenceContext;
   brief.evidenceSummary = researchEvidenceContext?.coverage;
 
@@ -364,26 +371,59 @@ function getEvidenceLabel(
   hasSearchEvidence: boolean,
   hasSecEvidence: boolean,
   hasIrEvidence: boolean,
+  hasMarketEvidence: boolean,
   evidenceLevel?: string,
 ) {
+  if (evidenceLevel === "search-sec-ir-and-market") {
+    return "Search + SEC + IR + Market Evidence Draft";
+  }
+  if (evidenceLevel === "search-sec-and-market") {
+    return "Search + SEC + Market Evidence Draft";
+  }
+  if (evidenceLevel === "search-ir-and-market") {
+    return "Search + IR + Market Evidence Draft";
+  }
+  if (evidenceLevel === "sec-ir-and-market") {
+    return "SEC + IR + Market Evidence Draft";
+  }
   if (evidenceLevel === "search-sec-and-ir") {
     return "Search + SEC + IR Evidence Draft";
   }
+  if (evidenceLevel === "search-and-market") return "Search + Market Evidence Draft";
+  if (evidenceLevel === "sec-and-market") return "SEC + Market Evidence Draft";
+  if (evidenceLevel === "ir-and-market") return "IR + Market Evidence Draft";
   if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
   if (evidenceLevel === "search-and-ir") return "Search + IR Evidence Draft";
   if (evidenceLevel === "sec-and-ir") return "SEC + IR Evidence Draft";
   if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
   if (evidenceLevel === "search-only") return "Search Evidence Draft";
   if (evidenceLevel === "ir-only") return "IR Evidence Draft";
+  if (evidenceLevel === "market-only") return "Market Evidence Draft";
+  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "Search + SEC + IR + Market Evidence Draft";
+  }
+  if (hasSearchEvidence && hasSecEvidence && hasMarketEvidence) {
+    return "Search + SEC + Market Evidence Draft";
+  }
+  if (hasSearchEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "Search + IR + Market Evidence Draft";
+  }
+  if (hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
+    return "SEC + IR + Market Evidence Draft";
+  }
   if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
     return "Search + SEC + IR Evidence Draft";
   }
+  if (hasSearchEvidence && hasMarketEvidence) return "Search + Market Evidence Draft";
+  if (hasSecEvidence && hasMarketEvidence) return "SEC + Market Evidence Draft";
+  if (hasIrEvidence && hasMarketEvidence) return "IR + Market Evidence Draft";
   if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
   if (hasSearchEvidence && hasIrEvidence) return "Search + IR Evidence Draft";
   if (hasSecEvidence && hasIrEvidence) return "SEC + IR Evidence Draft";
   if (hasSecEvidence) return "SEC Evidence Draft";
   if (hasSearchEvidence) return "Search Evidence Draft";
   if (hasIrEvidence) return "IR Evidence Draft";
+  if (hasMarketEvidence) return "Market Evidence Draft";
   return "LLM Demo / No Live Data";
 }
 
@@ -394,7 +434,7 @@ function ensureDataBadge(
 ): BriefDocument["hero"]["badges"] {
   const next = Array.isArray(badges) ? [...badges] : [];
   const hasDataBadge = next.some((badge) =>
-    /demo|mock|no live data|sample|search evidence|sec evidence|ir evidence/i.test(
+    /demo|mock|no live data|sample|search evidence|sec evidence|ir evidence|market evidence/i.test(
       badge.label,
     ),
   );
@@ -417,18 +457,26 @@ function buildEvidenceSourceNote({
   evidencePack,
   secEvidencePack,
   irEvidencePack,
+  marketEvidencePack,
   researchEvidenceContext,
   now,
 }: {
   evidencePack: GenerateBriefInput["evidencePack"];
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
   irEvidencePack: GenerateBriefInput["irEvidencePack"];
+  marketEvidencePack: GenerateBriefInput["marketEvidencePack"];
   researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const notes: string[] = [];
 
   if (researchEvidenceContext) {
+    if (researchEvidenceContext.evidenceLevel === "search-sec-ir-and-market") {
+      notes.push(
+        "Search + SEC + IR + Market Evidence Draft: Tavily/search evidence, SEC companyfacts / submissions, Company IR / earnings-release evidence, and third-party free market evidence are attached.",
+      );
+    }
+
     if (researchEvidenceContext.evidenceLevel === "search-sec-and-ir") {
       notes.push(
         "Search + SEC + IR Evidence Draft: Tavily/search evidence, SEC companyfacts / submissions, and Company IR / earnings-release evidence are attached.",
@@ -464,6 +512,15 @@ function buildEvidenceSourceNote({
     notes.push("Company IR / earnings-release evidence is not connected.");
   }
 
+  if (marketEvidencePack) {
+    const quote = marketEvidencePack.quote;
+    notes.push(
+      `Market Evidence Draft: marketProvider=${marketEvidencePack.provider}; retrievedAt=${quote?.retrievedAt || marketEvidencePack.asOf || now}; marketTimestamp=${quote?.marketTimestamp || "N/A"}; sourceCount=${marketEvidencePack.sources.length}; priceHistoryPoints=${marketEvidencePack.priceHistory?.length || 0}. Free public market data may be delayed or incomplete.`,
+    );
+  } else if (notes.length) {
+    notes.push("Market evidence is not connected.");
+  }
+
   if (!notes.length) {
     notes.push(
       "LLM Demo / No Live Data: 当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
@@ -471,7 +528,9 @@ function buildEvidenceSourceNote({
   }
 
   notes.push(
-    "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts, consensus, or real-time market data.",
+    marketEvidencePack
+      ? "Current scope still excludes consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus. Market evidence is third-party free market context only and is not verification-grade data, a formal trading quote, or investment advice."
+      : "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus.",
   );
 
   return notes.join(" ");

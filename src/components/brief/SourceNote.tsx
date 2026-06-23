@@ -4,6 +4,8 @@ import type {
   ResearchEvidenceLevel,
   SearchProviderName,
   SecProviderName,
+  IrProviderName,
+  MarketProviderName,
 } from "@/types/evidence";
 
 type SourceNoteProps = {
@@ -11,9 +13,13 @@ type SourceNoteProps = {
   dataMode: BriefDataMode;
   hasEvidencePack: boolean;
   hasSecEvidencePack?: boolean;
+  hasIrEvidencePack?: boolean;
+  hasMarketEvidencePack?: boolean;
   evidenceLevel?: ResearchEvidenceLevel;
   searchProvider?: SearchProviderName;
   secProvider?: SecProviderName;
+  irProvider?: IrProviderName;
+  marketProvider?: MarketProviderName;
 };
 
 export function SourceNote({
@@ -22,15 +28,23 @@ export function SourceNote({
   evidenceLevel,
   hasEvidencePack,
   hasSecEvidencePack = false,
+  hasIrEvidencePack = false,
+  hasMarketEvidencePack = false,
   searchProvider,
   secProvider,
+  irProvider,
+  marketProvider,
 }: SourceNoteProps) {
   const evidenceState = getEvidenceStatusCopy({
     evidenceLevel,
     hasSearchEvidence: hasEvidencePack,
     hasSecEvidence: hasSecEvidencePack,
+    hasIrEvidence: hasIrEvidencePack,
+    hasMarketEvidence: hasMarketEvidencePack,
     searchProvider,
     secProvider,
+    irProvider,
+    marketProvider,
   });
 
   return (

@@ -23,9 +23,11 @@ export function GeneratedBriefPreview({
     hasSearchEvidence: Boolean(brief.evidencePack),
     hasSecEvidence: Boolean(brief.secEvidencePack),
     hasIrEvidence: Boolean(brief.irEvidencePack),
+    hasMarketEvidence: Boolean(brief.marketEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
     irProvider: brief.irEvidencePack?.provider,
+    marketProvider: brief.marketEvidencePack?.provider,
   });
   const statusMessage = getGenerationMetaMessage(brief, generationMeta);
   const repairLabel = getRepairLabel(generationMeta);
@@ -75,9 +77,11 @@ function getGenerationMetaMessage(
     hasSearchEvidence: Boolean(brief.evidencePack),
     hasSecEvidence: Boolean(brief.secEvidencePack),
     hasIrEvidence: Boolean(brief.irEvidencePack),
+    hasMarketEvidence: Boolean(brief.marketEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
     irProvider: brief.irEvidencePack?.provider,
+    marketProvider: brief.marketEvidencePack?.provider,
   });
 
   if (meta?.provider === "mock" && meta.isFallback && level) {

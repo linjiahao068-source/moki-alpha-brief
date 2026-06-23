@@ -72,13 +72,13 @@ function buildSectionInstructions() {
   return [
     "## Required Sections",
     "Create sections with these stable ids and kinds. Each section must include 1-3 content blocks.",
-    "1. executive-view / kind executive-view: Investment committee style summary. State thesis, uncertainty, what would change the view, and current data boundary.",
+    "1. executive-view / kind executive-view: Investment committee style summary. State thesis, uncertainty, what would change the view, current data boundary, and market evidence context when supplied.",
     "2. company-snapshot / kind company-snapshot: Explain business structure. Use SEC filing metadata and official financial facts when provided. Use IR evidence only for company official narrative, management commentary, and business-update context.",
     "3. industry-chain-position / kind industry-chain: Explain upstream, downstream, value capture, bottlenecks, and profit pool position.",
     "4. competitive-landscape / kind competitive-landscape: Explain competitors, moat, switching costs, substitution risks, and ecosystem position.",
     "5. financial-deep-dive / kind financial-deep-dive: If ResearchEvidenceContext has official-financial SEC facts, prioritize them. IR evidence may explain management context, but must not replace SEC official-financial facts. If a metric is missing, say it is missing and do not invent it.",
     "6. key-value-drivers / kind value-drivers: Explain what truly drives valuation and share price perception. Separate SEC facts, search draft items, IR management commentary / product updates, and LLM analysis.",
-    "7. valuation / kind valuation: No real-time market price or consensus exists. Do not output a real target price, implied return, or formal rating. Use N/A or framework wording.",
+    "7. valuation / kind valuation: If Market Evidence is supplied, use it only as valuation context. Consensus is still missing. Do not output a real target price, implied return, or formal rating. Use N/A or framework wording.",
     "8. variant-perception / kind variant-perception: Use search evidence themes only as draft market context and state what still needs SEC / IR / market data verification.",
     "9. catalysts / kind catalysts: Use recent-development or risk-catalyst facts from search evidence and relevant IR business-update facts when supplied. Prefer high/medium confidence sources.",
     "10. key-risks / kind risks: Use search evidence, IR risk-disclosure context, or coverage missing items. Low-confidence sources are discussion signals only.",
@@ -94,8 +94,8 @@ function buildScenarioInstructions(context?: ResearchEvidenceContext) {
     "- Include Bull Case, Base Case, and Bear Case.",
     "- Probabilities should be plausible and together close to 100%.",
     "- Base Case should be the most neutral and credible path.",
-    context?.coverage.hasMarketPrice === false || context?.coverage.hasConsensus === false
-      ? "- Because market price and consensus are missing, targetPrice and impliedReturn must be 'N/A - 缺少实时股价 / 一致预期' or clearly labeled as simulated framework only."
+    context?.coverage.hasConsensus === false
+      ? "- Because consensus is missing and this MVP forbids formal recommendations, targetPrice and impliedReturn must be 'N/A - consensus / manual verification missing' or clearly labeled as simulated framework only. Market evidence, when supplied, is context only."
       : "- keyAssumptions must be concrete and source-aware.",
     "- Do not write scenario output as a real investment recommendation.",
   ].join("\n");
@@ -114,6 +114,9 @@ function buildMonitoringInstructions(context?: ResearchEvidenceContext) {
     "- Include at least 6 metrics.",
     "- Each metric must have metric, whyItMatters, and threshold.",
     "- The dashboard should feel like an investment tracking checklist, not a complex trading terminal.",
+    context?.marketEvidencePack
+      ? "- Include market evidence refresh, price / volume context, and recent daily price-history context without writing trading signals."
+      : "- Include follow-up metrics for missing market evidence where useful.",
     "- Include follow-up metrics for missing data coverage where useful.",
     `- Current missing data: ${missing.join(", ")}.`,
   ].join("\n");
@@ -127,7 +130,7 @@ function buildDataBoundaryInstructions(context?: ResearchEvidenceContext) {
       '- metadata.dataMode must be "llm-demo-no-live-data".',
       '- metadata.isMock must remain true and metadata.frameworkStatus must be "mock-reference-only".',
       "- hero.badges must include LLM Demo / No Live Data.",
-      "- sourceNote must say no SEC, IR, real-time price, consensus, or news retrieval is connected.",
+      "- sourceNote must say no SEC, IR, market evidence, consensus, or news retrieval is connected.",
       "- disclaimer.text must say: 本页面仅供研究和信息参考，不构成投资建议。",
       "- Do not make recent-news, SEC-backed, real-time, consensus, or verified-data claims.",
     ].join("\n");
@@ -139,8 +142,16 @@ function buildDataBoundaryInstructions(context?: ResearchEvidenceContext) {
     '- metadata.dataMode must be "evidence-draft". Never use "verified-real-data".',
     '- metadata.isMock must remain true and metadata.frameworkStatus must be "mock-reference-only" for this phase.',
     `- hero.badges must include ${getEvidenceLabel(context)}.`,
-    "- sourceNote must write evidenceLevel, search source count, SEC CIK / recent filing count / fiscal fact count when available.",
+    "- sourceNote must write evidenceLevel, search source count, SEC CIK / recent filing count / fiscal fact count, IR source count, and market provider / retrievedAt / marketTimestamp when available.",
   ];
+
+  if (context.evidenceLevel === "search-sec-ir-and-market") {
+    sourceNoteRules.push(
+      "- sourceNote must explicitly include: Search + SEC + IR + Market Evidence Draft.",
+      `- sourceNote must include SEC CIK=${context.secEvidencePack?.cik || "provided in context"}, recent filing count=${context.secEvidencePack?.recentFilings.length ?? "provided in context"}, fiscal fact count=${context.secEvidencePack?.fiscalFacts.length ?? "provided in context"}, search source count=${context.searchEvidencePack?.sources.length ?? "provided in context"}, IR source count=${context.irEvidencePack?.irItems.length ?? "provided in context"}, marketProvider=${context.marketEvidencePack?.provider || "provided in context"}, retrievedAt=${context.marketEvidencePack?.quote?.retrievedAt || "provided in context"}, and marketTimestamp=${context.marketEvidencePack?.quote?.marketTimestamp || "N/A"}.`,
+      "- Because Market evidence is connected in this request, do not write 'no real-time market price', 'market evidence not connected', or '未接实时股价'. Write that third-party free market evidence is attached and may be delayed or incomplete.",
+    );
+  }
 
   if (context.evidenceLevel === "search-and-sec") {
     sourceNoteRules.push(
@@ -163,15 +174,26 @@ function buildDataBoundaryInstructions(context?: ResearchEvidenceContext) {
     );
   }
 
+  if (context.marketEvidencePack) {
+    sourceNoteRules.push(
+      `- sourceNote must include Market Evidence Draft with marketProvider=${context.marketEvidencePack.provider}, retrievedAt=${context.marketEvidencePack.quote?.retrievedAt || context.marketEvidencePack.asOf}, marketTimestamp=${context.marketEvidencePack.quote?.marketTimestamp || "N/A"}, and priceHistoryPoints=${context.marketEvidencePack.priceHistory?.length || 0}.`,
+      "- sourceNote must say free public market data may be delayed or incomplete.",
+      "- Do not call market evidence consensus, SEC official-financial data, verification-grade data, a formal trading quote, or investment advice.",
+    );
+  }
+
   return [
     ...sourceNoteRules,
-    "- sourceNote must say this has no real-time market price, no consensus estimates, no database save, and no manual verification.",
+    context.marketEvidencePack
+      ? "- sourceNote must say consensus estimates, database save, and manual verification are still missing."
+      : "- sourceNote must say this has no real-time market price, no consensus estimates, no database save, and no manual verification.",
     "- If IR evidence is attached, sourceNote may say PDF full-text parsing and transcript full-text parsing are not connected, but must not say Company IR evidence itself is missing.",
     "- If IR evidence is not attached, sourceNote must say Company IR / earnings-release evidence is not connected.",
     "- disclaimer.text must say: 本页面仅供研究和信息参考，不构成投资建议。",
     "- Do not fabricate citations, URLs, SEC accession numbers, source ids, news links, or publisher names.",
     "- Search evidence and SEC evidence must stay separated. Search snippets cannot become official financial facts.",
     "- IR evidence must stay separated from SEC evidence and search evidence. It can support company official narrative and management commentary only.",
+    "- Market evidence must stay separated from SEC, IR, Search, and consensus. It can support market-context, valuation-context, and monitoring-dashboard only.",
     "- SEC companyfacts are official disclosure facts, but this MVP extraction is still only evidence-draft and not real-time market data.",
   ].join("\n");
 }
@@ -190,6 +212,7 @@ function buildResearchEvidenceInstructions(context?: ResearchEvidenceContext) {
     "Use this compact context as the only evidence source for this request.",
     "Do not use any outside facts beyond this context.",
     "Chapter-level evidence rules:",
+    "- Investment View: may use market-price, market-volume, and market-price-history only as market context, never as a formal recommendation.",
     "- Financial Statement Deep Dive: use only factType=official-financial with allowedUse=financial-analysis. These are SEC companyfacts. If revenue, net income, or EPS is missing, state that it is missing.",
     "- Company Snapshot: may use filing-metadata, official-financial facts, and IR management-commentary / business-update facts. Search evidence may only describe draft recent context.",
     "- Key Value Drivers: may use IR product-update, management-commentary, business-update, and company-guidance-context facts, while clearly labeling them as IR evidence draft.",
@@ -199,8 +222,8 @@ function buildResearchEvidenceInstructions(context?: ResearchEvidenceContext) {
     "- Catalysts: may combine Search recent-development facts with IR business-update facts.",
     "- Key Risks: use risk-catalyst facts, IR risk-disclosure context, or coverage missing items. Do not turn low-confidence sources into firm facts.",
     "- Variant Perception: may combine search themes and IR company narrative with explicit caveats that market data, consensus, and manual verification are still needed.",
-    "- Valuation: coverage.hasMarketPrice=false and coverage.hasConsensus=false. Do not output real target price, implied return, or formal rating.",
-    "- Monitoring Dashboard: include missing market price / consensus follow-up metrics, plus IR follow-up only when coverage.hasCompanyIr=false.",
+    "- Valuation: may use market-valuation-context only as context. coverage.hasConsensus=false. Do not output real target price, implied return, or formal rating.",
+    "- Monitoring Dashboard: if Market Evidence is supplied, include price, volume, price history, and market data refresh metrics. If not supplied, include missing market evidence follow-up metrics. Consensus follow-up remains missing.",
     "- Do not fabricate management quotes. Do not claim PDF full text or transcript full text was parsed.",
     "Compact ResearchEvidenceContext:",
     JSON.stringify(compactResearchEvidenceForPrompt(context), null, 2),
@@ -236,8 +259,29 @@ function buildSchemaInstructions() {
 }
 
 function getEvidenceLabel(context: ResearchEvidenceContext) {
+  if (context.evidenceLevel === "search-sec-ir-and-market") {
+    return "Search + SEC + IR + Market Evidence Draft";
+  }
+  if (context.evidenceLevel === "search-sec-and-market") {
+    return "Search + SEC + Market Evidence Draft";
+  }
+  if (context.evidenceLevel === "search-ir-and-market") {
+    return "Search + IR + Market Evidence Draft";
+  }
+  if (context.evidenceLevel === "sec-ir-and-market") {
+    return "SEC + IR + Market Evidence Draft";
+  }
   if (context.evidenceLevel === "search-sec-and-ir") {
     return "Search + SEC + IR Evidence Draft";
+  }
+  if (context.evidenceLevel === "search-and-market") {
+    return "Search + Market Evidence Draft";
+  }
+  if (context.evidenceLevel === "sec-and-market") {
+    return "SEC + Market Evidence Draft";
+  }
+  if (context.evidenceLevel === "ir-and-market") {
+    return "IR + Market Evidence Draft";
   }
   if (context.evidenceLevel === "search-and-sec") {
     return "Search + SEC Evidence Draft";
@@ -251,5 +295,6 @@ function getEvidenceLabel(context: ResearchEvidenceContext) {
   if (context.evidenceLevel === "sec-only") return "SEC Evidence Draft";
   if (context.evidenceLevel === "search-only") return "Search Evidence Draft";
   if (context.evidenceLevel === "ir-only") return "IR Evidence Draft";
+  if (context.evidenceLevel === "market-only") return "Market Evidence Draft";
   return "LLM Demo / No Live Data";
 }

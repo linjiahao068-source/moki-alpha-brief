@@ -2,7 +2,7 @@
 
 Moki Alpha Brief is a V0.1 public research brief clone for a buy-side style NVDA memo.
 
-Current status: V0.1 static share page plus Phase 9.4 Company IR / Earnings Release Evidence MVP. It defaults to evidence-draft / mock-safe behavior and keeps the Moki black, white, and gold visual system.
+Current status: V0.1 static share page plus Phase 9.5 free Market Evidence MVP based on global-stock-data request patterns. It defaults to evidence-draft / mock-safe behavior and keeps the Moki black, white, and gold visual system.
 
 ## Local Run
 
@@ -32,7 +32,7 @@ npm run build
 - No database
 - No committed LLM API key
 - No real serenity-skill execution
-- No real-time stock price or consensus estimate feed
+- No formal trading quote feed or consensus estimate feed
 - No login or saved user-generated task
 - No saved generated share page
 - No PDF full-text parsing or transcript full-text parsing
@@ -45,9 +45,9 @@ DEEPSEEK_API_KEY=
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-`/generate` can choose Fast (`deepseek-chat`) or Deep Reasoning (`deepseek-reasoner`). The reasoner mode does not show, save, or pass back `reasoning_content`; it only renders the final structured BriefDocument JSON.
+`/generate` can choose Fast (`deepseek-chat`) or Deep Reasoning (`deepseek-reasoner`). The reasoner mode does not show, save, or pass back internal reasoning; it only renders the final structured BriefDocument JSON.
 
-`/generate` can also enable Search, SEC, and Company IR Evidence Draft modes. Without `TAVILY_API_KEY`, search-backed IR falls back to mock IR evidence.
+`/generate` can also enable Search, SEC, Company IR, and Market Evidence Draft modes. Without `TAVILY_API_KEY`, search-backed IR falls back to mock IR evidence. Market Evidence uses `MARKET_PROVIDER=global-stock-data` by default and falls back to mock market evidence if public sources are unavailable.
 
 ## Docs
 
@@ -87,6 +87,10 @@ Research evidence context:
 Company IR evidence:
 
 - `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`
+
+Market evidence:
+
+- `docs/V0_1_MARKET_DATA_MVP.md`
 
 Evidence status copy:
 

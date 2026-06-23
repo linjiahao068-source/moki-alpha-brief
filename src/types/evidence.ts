@@ -8,15 +8,25 @@ export type SecProviderName = "mock" | "sec";
 
 export type IrProviderName = "mock" | "search";
 
+export type MarketProviderName = "mock" | "global-stock-data";
+
 export type ResearchEvidenceLevel =
   | "none"
   | "search-only"
   | "sec-only"
   | "ir-only"
+  | "market-only"
   | "search-and-sec"
   | "search-and-ir"
+  | "search-and-market"
   | "sec-and-ir"
-  | "search-sec-and-ir";
+  | "sec-and-market"
+  | "ir-and-market"
+  | "search-sec-and-ir"
+  | "search-sec-and-market"
+  | "search-ir-and-market"
+  | "sec-ir-and-market"
+  | "search-sec-ir-and-market";
 
 export type EvidenceQueryPurpose =
   | "recent-news"
@@ -217,6 +227,49 @@ export type IrEvidencePack = {
   warnings?: string[];
 };
 
+export type MarketQuote = {
+  symbol: string;
+  name?: string;
+  provider: MarketProviderName;
+  price?: number;
+  previousClose?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+  change?: number;
+  percentChange?: number;
+  marketCap?: number;
+  peRatio?: number;
+  currency?: string;
+  exchange?: string;
+  marketTimestamp?: string;
+  retrievedAt: string;
+  dateStatus?: "market-timestamp" | "retrieved-only" | "unknown";
+  confidence: "medium";
+};
+
+export type MarketPricePoint = {
+  date: string;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
+};
+
+export type MarketEvidencePack = {
+  asOf: string;
+  ticker: string;
+  companyName?: string;
+  provider: MarketProviderName;
+  dataMode: "evidence-draft";
+  quote?: MarketQuote;
+  priceHistory?: MarketPricePoint[];
+  sources: EvidenceSource[];
+  warnings?: string[];
+};
+
 export type EvidencePack = {
   asOf: string;
   ticker: string;
@@ -235,7 +288,7 @@ export type EvidencePack = {
 
 export type ResearchEvidenceSource = {
   id: string;
-  sourceKind: "search" | "sec" | "ir" | "manual" | "mock";
+  sourceKind: "search" | "sec" | "ir" | "market" | "manual" | "mock";
   sourceType:
     | "news"
     | "company-ir"
@@ -251,6 +304,7 @@ export type ResearchEvidenceSource = {
     | "sec-submission"
     | "sec-companyfacts"
     | "market-commentary"
+    | "market-data"
     | "manual";
   title: string;
   url?: string;
@@ -273,9 +327,13 @@ export type ResearchEvidenceFact = {
     | "management-commentary"
     | "company-guidance-context"
     | "business-update"
+    | "market-price"
+    | "market-volume"
+    | "market-price-history"
+    | "market-valuation-context"
     | "market-discussion"
     | "llm-analysis-placeholder";
-  sourceKind: "sec" | "search" | "ir" | "mock";
+  sourceKind: "sec" | "search" | "ir" | "market" | "mock";
   sourceId: string;
   label: string;
   value?: string | number;
@@ -292,6 +350,9 @@ export type ResearchEvidenceFact = {
     | "management-commentary"
     | "company-guidance-context"
     | "business-update"
+    | "market-context"
+    | "valuation-context"
+    | "monitoring-dashboard"
     | "context-only"
     | "not-for-facts";
   note?: string;
@@ -305,7 +366,10 @@ export type EvidenceCoverageSummary = {
   hasRevenueFact: boolean;
   hasNetIncomeFact: boolean;
   hasEpsFact: boolean;
-  hasMarketPrice: false;
+  hasMarketPrice: boolean;
+  hasMarketVolume: boolean;
+  hasMarketPriceHistory: boolean;
+  hasMarketCap: boolean;
   hasConsensus: false;
   hasCompanyIr: boolean;
   hasEarningsRelease: boolean;
@@ -324,6 +388,7 @@ export type ResearchEvidenceContext = {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
+  marketEvidencePack?: MarketEvidencePack;
   sourceRegistry: ResearchEvidenceSource[];
   factLedger: ResearchEvidenceFact[];
   coverage: EvidenceCoverageSummary;

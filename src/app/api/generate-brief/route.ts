@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     useSearch: payload.useSearch === true,
     useSec: payload.useSec === true,
     useIr: payload.useIr === true,
+    useMarket: payload.useMarket === true,
   });
 
   return NextResponse.json(result, { status: result.brief ? 200 : result.ok ? 200 : 500 });

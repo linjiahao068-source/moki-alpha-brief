@@ -19,7 +19,11 @@ export function DataBoundaryNote({
 }: DataBoundaryNoteProps) {
   const dataMode = brief.metadata.dataMode;
   const hasEvidence = Boolean(
-    brief.researchEvidenceContext || brief.evidencePack || brief.secEvidencePack,
+    brief.researchEvidenceContext ||
+      brief.evidencePack ||
+      brief.secEvidencePack ||
+      brief.irEvidencePack ||
+      brief.marketEvidencePack,
   );
   const isVerified = dataMode === "verified-real-data";
   const isEvidenceDraft = dataMode === "evidence-draft";
@@ -27,8 +31,12 @@ export function DataBoundaryNote({
     evidenceLevel: brief.researchEvidenceContext?.evidenceLevel,
     hasSearchEvidence: Boolean(brief.evidencePack),
     hasSecEvidence: Boolean(brief.secEvidencePack),
+    hasIrEvidence: Boolean(brief.irEvidencePack),
+    hasMarketEvidence: Boolean(brief.marketEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
+    irProvider: brief.irEvidencePack?.provider,
+    marketProvider: brief.marketEvidencePack?.provider,
   });
 
   return (

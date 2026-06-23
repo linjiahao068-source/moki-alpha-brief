@@ -12,6 +12,7 @@ import type {
 } from "@/types/evidence";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
 import { IrEvidencePanel } from "./IrEvidencePanel";
+import { MarketEvidencePanel } from "./MarketEvidencePanel";
 import { ResearchEvidencePanel } from "./ResearchEvidencePanel";
 import { SecEvidencePanel } from "./SecEvidencePanel";
 import { SourceEvidenceList } from "./SourceEvidenceList";
@@ -36,6 +37,9 @@ type GenerateApiResult = {
   irProvider?: "mock" | "search";
   irIsFallback?: boolean;
   irWarnings?: string[];
+  marketProvider?: "mock" | "global-stock-data";
+  marketIsFallback?: boolean;
+  marketWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;
@@ -51,6 +55,7 @@ export function GenerateBriefForm() {
   const [useSearch, setUseSearch] = useState(false);
   const [useSec, setUseSec] = useState(false);
   const [useIr, setUseIr] = useState(false);
+  const [useMarket, setUseMarket] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +74,14 @@ export function GenerateBriefForm() {
         hasSearchEvidence: Boolean(result?.brief?.evidencePack),
         hasSecEvidence: Boolean(result?.brief?.secEvidencePack),
         hasIrEvidence: Boolean(result?.brief?.irEvidencePack),
+        hasMarketEvidence: Boolean(result?.brief?.marketEvidencePack),
         searchProvider:
           result?.searchProvider || result?.brief?.evidencePack?.searchProvider,
         secProvider:
           result?.secProvider || result?.brief?.secEvidencePack?.provider,
         irProvider: result?.irProvider || result?.brief?.irEvidencePack?.provider,
+        marketProvider:
+          result?.marketProvider || result?.brief?.marketEvidencePack?.provider,
       }),
     [evidenceLevel, result],
   );
@@ -97,12 +105,17 @@ export function GenerateBriefForm() {
     () => (result?.irWarnings || []).filter(Boolean),
     [result],
   );
+  const marketWarningList = useMemo(
+    () => (result?.marketWarnings || []).filter(Boolean),
+    [result],
+  );
   const evidenceStats = useMemo(
     () => getEvidenceStats(result?.brief),
     [result],
   );
   const secStats = useMemo(() => getSecStats(result?.brief), [result]);
   const irStats = useMemo(() => getIrStats(result?.brief), [result]);
+  const marketStats = useMemo(() => getMarketStats(result?.brief), [result]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,6 +135,7 @@ export function GenerateBriefForm() {
           useSearch,
           useSec,
           useIr,
+          useMarket,
         }),
       });
       const payload = (await response.json()) as GenerateApiResult;
@@ -184,7 +198,7 @@ export function GenerateBriefForm() {
             />
             <ModelModeOption
               checked={modelMode === "reasoner"}
-              description="Deep Reasoning uses deepseek-reasoner. It may be slower, and reasoning_content is never shown or stored."
+              description="Deep Reasoning uses deepseek-reasoner. It may be slower, and internal reasoning is never shown or stored."
               label="Deep Reasoning"
               model="deepseek-reasoner"
               onChange={() => setModelMode("reasoner")}
@@ -210,11 +224,17 @@ export function GenerateBriefForm() {
           label="Use Company IR / earnings release"
           onChange={setUseIr}
         />
+        <EvidenceToggle
+          checked={useMarket}
+          description="Fetch third-party free market evidence for quote, volume, market timestamp, and recent daily kline context."
+          label="Use Market Data"
+          onChange={setUseMarket}
+        />
 
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
           Current mode is LLM Demo / Evidence Draft. Optional Search, SEC,
-          and Company IR evidence remain draft inputs; real-time market price,
-          consensus estimates, database save, PDF full-text parsing, transcript
+          Company IR, and Market evidence remain draft inputs; free market data
+          may be delayed or incomplete. Consensus estimates, database save, PDF full-text parsing, transcript
           full-text parsing, and manual verification are still out of scope.
         </div>
 
@@ -258,6 +278,10 @@ export function GenerateBriefForm() {
             <StatusItem label="IR Sources" value={String(irStats.total)} mono />
             <StatusItem label="Company IR Coverage" value={coverage?.hasCompanyIr ? "yes" : "no"} mono />
             <StatusItem label="Earnings / Guidance" value={getIrCoverageLabel(coverage)} mono />
+            <StatusItem label="Market Provider" value={result.marketProvider || "n/a"} mono />
+            <StatusItem label="Market Price" value={marketStats.price} mono />
+            <StatusItem label="Market Timestamp" value={marketStats.timestamp} mono />
+            <StatusItem label="Market History" value={marketStats.history} mono />
           </div>
 
           <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
@@ -276,7 +300,7 @@ export function GenerateBriefForm() {
 
           {(result.modelMode || modelMode) === "reasoner" ? (
             <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-              使用 Deep Reasoning 模式生成；推理过程不会展示，仅展示最终结构化 BriefDocument。
+              使用 Deep Reasoning 模式生成；内部推理过程不会展示，仅展示最终结构化 BriefDocument。
             </p>
           ) : null}
 
@@ -285,6 +309,7 @@ export function GenerateBriefForm() {
           <IssuePanel title="Search Warnings" items={searchWarningList} />
           <IssuePanel title="SEC Warnings" items={secWarningList} />
           <IssuePanel title="IR Warnings" items={irWarningList} />
+          <IssuePanel title="Market Warnings" items={marketWarningList} />
         </section>
       ) : null}
 
@@ -318,6 +343,13 @@ export function GenerateBriefForm() {
         <IrEvidencePanel
           irEvidencePack={result.brief.irEvidencePack}
           warnings={irWarningList}
+        />
+      ) : null}
+
+      {result?.brief?.marketEvidencePack ? (
+        <MarketEvidencePanel
+          marketEvidencePack={result.brief.marketEvidencePack}
+          warnings={marketWarningList}
         />
       ) : null}
 
@@ -500,6 +532,24 @@ function getIrStats(brief?: BriefDocument) {
   };
 }
 
+function getMarketStats(brief?: BriefDocument) {
+  const pack = brief?.marketEvidencePack;
+  const quote = pack?.quote;
+  const currency = quote?.currency ? ` ${quote.currency}` : "";
+  const timestamp = quote?.marketTimestamp || quote?.retrievedAt || "n/a";
+
+  return {
+    price:
+      quote?.price !== undefined
+        ? `${formatNumber(quote.price)}${currency}`
+        : "N/A",
+    timestamp,
+    history: pack?.priceHistory?.length
+      ? `${pack.priceHistory.length} daily`
+      : "N/A",
+  };
+}
+
 function getGenerationStatusMessage(
   result: GenerateApiResult,
   fallbackCopy: string,
@@ -530,7 +580,7 @@ function getCoverageLabel(coverage?: EvidenceCoverageSummary) {
     coverage.hasSearchEvidence ? "Search" : "Search missing",
     coverage.hasSecEvidence ? "SEC" : "SEC missing",
     coverage.hasCompanyIr ? "IR" : "IR missing",
-    "Market Price missing",
+    coverage.hasMarketPrice ? "Market Price" : "Market Price missing",
     "Consensus missing",
   ].join(" / ");
 }
@@ -547,4 +597,10 @@ function getIrCoverageLabel(coverage?: EvidenceCoverageSummary) {
   return `${coverage.hasEarningsRelease ? "earnings yes" : "earnings no"} / ${
     coverage.hasGuidanceContext ? "guidance yes" : "guidance no"
   }`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+  }).format(value);
 }

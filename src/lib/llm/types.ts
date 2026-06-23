@@ -3,6 +3,7 @@ import type {
   EvidenceCoverageSummary,
   EvidencePack,
   IrEvidencePack,
+  MarketEvidencePack,
   ResearchEvidenceContext,
   ResearchEvidenceLevel,
   SecEvidencePack,
@@ -20,9 +21,11 @@ export type GenerateBriefInput = {
   useSearch?: boolean;
   useSec?: boolean;
   useIr?: boolean;
+  useMarket?: boolean;
   evidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
+  marketEvidencePack?: MarketEvidencePack;
   researchEvidenceContext?: ResearchEvidenceContext;
 };
 
@@ -48,6 +51,9 @@ export type GenerateBriefResult = {
   irProvider?: IrEvidencePack["provider"];
   irIsFallback?: boolean;
   irWarnings?: string[];
+  marketProvider?: MarketEvidencePack["provider"];
+  marketIsFallback?: boolean;
+  marketWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;
