@@ -1,5 +1,6 @@
 import { nvdaBrief } from "@/data/nvdaBrief";
 import { validateBriefDocument } from "@/lib/briefs/validateBrief";
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { BriefDocument } from "@/types/brief";
 import type { GenerateBriefInput, GenerateBriefResult } from "../types";
 
@@ -14,7 +15,15 @@ export async function mockProvider(
   const researchEvidenceContext = input.researchEvidenceContext;
   const hasEvidencePack = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
-  const hasAnyEvidence = Boolean(researchEvidenceContext) || hasEvidencePack || hasSecEvidence;
+  const hasAnyEvidence =
+    Boolean(researchEvidenceContext) || hasEvidencePack || hasSecEvidence;
+  const evidenceStatus = getEvidenceStatusCopy({
+    evidenceLevel: researchEvidenceContext?.evidenceLevel,
+    hasSearchEvidence: hasEvidencePack,
+    hasSecEvidence,
+    searchProvider: evidencePack?.searchProvider,
+    secProvider: secEvidencePack?.provider,
+  });
 
   const baseBrief = cloneBrief(nvdaBrief);
   const brief =
@@ -37,13 +46,7 @@ export async function mockProvider(
     dataMode: hasAnyEvidence ? "evidence-draft" : "mock",
     brand: "Moki",
     product: "Moki Alpha Brief",
-    shareLabel: hasAnyEvidence
-      ? getEvidenceLabel(
-          hasEvidencePack,
-          hasSecEvidence,
-          researchEvidenceContext?.evidenceLevel,
-        )
-      : "LLM Demo Preview",
+    shareLabel: hasAnyEvidence ? evidenceStatus.label : "LLM Demo Preview",
   };
   brief.hero = {
     ...brief.hero,
@@ -52,17 +55,14 @@ export async function mockProvider(
     badges: hasAnyEvidence
       ? [
           {
-            label: getEvidenceLabel(
-              hasEvidencePack,
-              hasSecEvidence,
-              researchEvidenceContext?.evidenceLevel,
-            ),
+            label: evidenceStatus.label,
             tone: "brand",
           },
           {
-            label: secEvidencePack?.provider === "mock"
-              ? "Mock SEC Evidence"
-              : "Evidence Draft",
+            label:
+              secEvidencePack?.provider === "mock"
+                ? "Mock SEC Evidence"
+                : "Evidence Draft",
             tone: "neutral",
           },
         ]
@@ -80,20 +80,26 @@ export async function mockProvider(
     buttonHref: "/generate",
   };
   brief.sourceNote = {
-    ...brief.sourceNote,
+    id: "source-note",
+    title: "Source & Method Note",
     paragraphs: hasAnyEvidence
       ? [
-          buildMockEvidenceSourceNote({ evidencePack, secEvidencePack, now }),
-          "当前为 Evidence Draft，未接实时股价、一致预期或数据库；所有目标价、收益判断和估值结论仍为模拟 / 示例 / 待核查。",
+          buildMockEvidenceSourceNote({
+            evidencePack,
+            secEvidencePack,
+            researchEvidenceContext,
+            now,
+          }),
+          "当前仍未接入实时股价、一致预期、公司 IR 正文解析或数据库保存；所有目标价、收益判断和估值结论仍为模拟 / 示例 / 待核查语境。",
         ]
       : [
-          "当前结果由 mock provider 生成，用于验证 LLM 生成闭环与 BriefDocument 渲染，不代表真实研究结论。",
-          "当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索；所有数字、判断和情景均为模拟 / 示例 / no-live-data。",
+          "当前结果由 mock provider 生成，用于验证 LLM 生成闭环中的 BriefDocument 渲染，不代表真实研究结论。",
+          "当前未接入搜索、SEC、公司 IR、实时股价、一致预期或数据库；所有数字、判断和情景均为模拟 / 示例 / no-live-data。",
         ],
   };
   brief.disclaimer = {
     title: "Disclaimer",
-    text: "本页面仅供研究和信息参考，不构成投资建议。当前生成结果为 Mock / LLM Demo / Search Evidence Draft，不代表实时行情、正式评级或任何个性化建议。",
+    text: "本页面仅供研究和信息参考，不构成投资建议。当前生成结果为 Mock / LLM Demo / Evidence Draft，不代表实时行情、正式评级或任何个性化建议。",
   };
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
@@ -118,38 +124,31 @@ function inferModelMode(model: string | undefined) {
   return model === "deepseek-reasoner" ? "reasoner" : "chat";
 }
 
-function getEvidenceLabel(
-  hasSearchEvidence: boolean,
-  hasSecEvidence: boolean,
-  evidenceLevel?: string,
-) {
-  if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
-  if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
-  if (evidenceLevel === "search-only") return "Search Evidence Draft";
-  if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
-  if (hasSecEvidence) return "SEC Evidence Draft";
-  if (hasSearchEvidence) return "Search Evidence Draft";
-  return "LLM Demo Preview";
-}
-
 function buildMockEvidenceSourceNote({
   evidencePack,
   secEvidencePack,
+  researchEvidenceContext,
   now,
 }: {
   evidencePack: GenerateBriefInput["evidencePack"];
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
+  researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const parts: string[] = [];
   const evidenceLevel =
-    evidencePack && secEvidencePack
+    researchEvidenceContext?.evidenceLevel ||
+    (evidencePack && secEvidencePack
       ? "search-and-sec"
       : secEvidencePack
         ? "sec-only"
         : evidencePack
           ? "search-only"
-          : "none";
+          : "none");
+
+  if (evidenceLevel === "search-and-sec") {
+    parts.push("Search + SEC Evidence Draft: search evidence and SEC companyfacts / submissions are attached.");
+  }
 
   if (evidenceLevel !== "none") {
     parts.push(`Research Evidence Context: evidenceLevel=${evidenceLevel}; dataMode=evidence-draft.`);
@@ -167,7 +166,7 @@ function buildMockEvidenceSourceNote({
     );
   }
 
-  parts.push("This is not verification-grade real data and does not include real-time price or consensus estimates.");
+  parts.push("当前未接入实时股价、一致预期、公司 IR 正文解析或数据库保存，因此仍是 evidence-draft，不是验证级真实数据。");
 
   return parts.join(" ");
 }

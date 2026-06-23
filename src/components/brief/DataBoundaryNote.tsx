@@ -1,4 +1,5 @@
-﻿import type { BriefDataMode, BriefDocument } from "@/types/brief";
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
+import type { BriefDataMode, BriefDocument } from "@/types/brief";
 
 type DataBoundaryNoteProps = {
   brief: BriefDocument;
@@ -22,7 +23,13 @@ export function DataBoundaryNote({
   );
   const isVerified = dataMode === "verified-real-data";
   const isEvidenceDraft = dataMode === "evidence-draft";
-  const evidenceState = getEvidenceState(brief);
+  const evidenceState = getEvidenceStatusCopy({
+    evidenceLevel: brief.researchEvidenceContext?.evidenceLevel,
+    hasSearchEvidence: Boolean(brief.evidencePack),
+    hasSecEvidence: Boolean(brief.secEvidencePack),
+    searchProvider: brief.evidencePack?.searchProvider,
+    secProvider: brief.secEvidencePack?.provider,
+  });
 
   return (
     <aside
@@ -46,11 +53,11 @@ export function DataBoundaryNote({
 
       {isEvidenceDraft ? (
         <p className="mt-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-          {evidenceState.description}
+          {evidenceState.boundaryDescription}
         </p>
       ) : !isVerified ? (
         <p className="mt-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-          当前未接入实时数据源，数字和判断仅为演示结构。页面未连接真实 SEC、公司 IR、实时股价、一致预期或新闻检索。
+          当前未接入实时数据源，数字和判断仅为演示结构。页面未连接搜索、SEC、公司 IR、实时股价、一致预期或数据库。
         </p>
       ) : (
         <p className="mt-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
@@ -59,59 +66,4 @@ export function DataBoundaryNote({
       )}
     </aside>
   );
-}
-
-function getEvidenceState(brief: BriefDocument) {
-  const level = brief.researchEvidenceContext?.evidenceLevel;
-  if (level === "search-and-sec") {
-    return {
-      label: "Search + SEC Evidence Draft / Sources Attached",
-      description:
-        "当前为 Search + SEC Evidence Draft，已接入搜索证据和 SEC companyfacts / submissions；未接入实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-  if (level === "sec-only") {
-    return {
-      label: "SEC Evidence Draft / Sources Attached",
-      description:
-        "当前为 SEC Evidence Draft，已接入 SEC companyfacts / submissions；未接入搜索证据、实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-  if (level === "search-only") {
-    return {
-      label: "Search Evidence Draft / Sources Attached",
-      description:
-        "当前为 Search Evidence Draft，已接入搜索证据；未接入 SEC companyfacts / submissions、实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-
-  const hasSearch = Boolean(brief.evidencePack);
-  const hasSec = Boolean(brief.secEvidencePack);
-
-  if (hasSearch && hasSec) {
-    return {
-      label: "Search + SEC Evidence Draft / Sources Attached",
-      description:
-        "当前为 Search + SEC Evidence Draft，已接入搜索证据和 SEC companyfacts / submissions；未接入实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-  if (hasSec) {
-    return {
-      label: "SEC Evidence Draft / Sources Attached",
-      description:
-        "当前为 SEC Evidence Draft，已接入 SEC companyfacts / submissions；未接入搜索证据、实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-  if (hasSearch) {
-    return {
-      label: "Search Evidence Draft / Sources Attached",
-      description:
-        "当前为 Search Evidence Draft，已接入搜索证据；未接入 SEC companyfacts / submissions、实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-    };
-  }
-  return {
-    label: "Evidence Draft / Sources Attached",
-    description:
-      "当前为 Evidence Draft；未接入实时股价、一致预期、公司 IR 正文解析、数据库保存或人工校验，不构成投资建议。",
-  };
 }

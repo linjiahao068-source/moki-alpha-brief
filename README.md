@@ -83,6 +83,10 @@ Research evidence context:
 
 - `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`
 
+Evidence status copy:
+
+- Phase 9.3.1 fixed `search-and-sec` status copy so the UI no longer says SEC is missing when SEC Evidence is attached.
+
 Mobile QA:
 
 - `docs/V0_1_MOBILE_QA_REPORT.md`

@@ -1,6 +1,7 @@
 "use client";
 
 import { BriefPage } from "@/components/brief/BriefPage";
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { BriefDocument } from "@/types/brief";
 
 type GeneratedBriefPreviewProps = {
@@ -17,6 +18,13 @@ export function GeneratedBriefPreview({
   brief,
   generationMeta,
 }: GeneratedBriefPreviewProps) {
+  const evidenceStatus = getEvidenceStatusCopy({
+    evidenceLevel: brief.researchEvidenceContext?.evidenceLevel,
+    hasSearchEvidence: Boolean(brief.evidencePack),
+    hasSecEvidence: Boolean(brief.secEvidencePack),
+    searchProvider: brief.evidencePack?.searchProvider,
+    secProvider: brief.secEvidencePack?.provider,
+  });
   const statusMessage = getGenerationMetaMessage(brief, generationMeta);
   const repairLabel = getRepairLabel(generationMeta);
 
@@ -34,7 +42,7 @@ export function GeneratedBriefPreview({
             Data: {brief.metadata.dataMode}
           </span>
           <span className="rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1 text-[var(--foreground)] opacity-75">
-            Evidence: {getEvidenceLabel(brief)}
+            Evidence: {evidenceStatus.label}
           </span>
           {generationMeta ? (
             <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
@@ -55,33 +63,25 @@ export function GeneratedBriefPreview({
   );
 }
 
-function getEvidenceLabel(brief: BriefDocument) {
-  const level = brief.researchEvidenceContext?.evidenceLevel;
-  if (level === "search-and-sec") return "Search + SEC Evidence Draft";
-  if (level === "sec-only") return "SEC Evidence Draft";
-  if (level === "search-only") return "Search Evidence Draft";
-
-  const hasSearch = Boolean(brief.evidencePack);
-  const hasSec = Boolean(brief.secEvidencePack);
-
-  if (hasSearch && hasSec) return "Search + SEC Evidence Draft";
-  if (hasSec) return "SEC Evidence Draft";
-  if (hasSearch) return "Search Evidence Draft";
-  return "None / No Live Data";
-}
-
 function getGenerationMetaMessage(
   brief: BriefDocument,
   meta: GeneratedBriefPreviewProps["generationMeta"],
 ) {
   const level = brief.researchEvidenceContext?.evidenceLevel;
+  const evidenceStatus = getEvidenceStatusCopy({
+    evidenceLevel: level,
+    hasSearchEvidence: Boolean(brief.evidencePack),
+    hasSecEvidence: Boolean(brief.secEvidencePack),
+    searchProvider: brief.evidencePack?.searchProvider,
+    secProvider: brief.secEvidencePack?.provider,
+  });
 
   if (meta?.provider === "mock" && meta.isFallback && level) {
     return "Evidence was fetched, but LLM generation failed. Showing fallback mock brief.";
   }
 
-  if (meta?.provider === "deepseek" && level === "search-and-sec") {
-    return "Search + SEC Evidence Draft generated with DeepSeek.";
+  if (meta?.provider === "deepseek") {
+    return evidenceStatus.shortDescription;
   }
 
   if (meta?.jsonRepairSucceeded) {

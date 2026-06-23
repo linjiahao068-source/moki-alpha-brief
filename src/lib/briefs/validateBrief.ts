@@ -158,6 +158,15 @@ function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
   if (level === "search-and-sec" && !/search \+ sec evidence draft|search and sec/i.test(text)) {
     issues.push("sourceNote must mention Search + SEC Evidence Draft");
   }
+
+  if (
+    brief.metadata?.dataMode === "evidence-draft" &&
+    !mentionsMissingMarketBoundaries(text)
+  ) {
+    issues.push(
+      "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
+    );
+  }
 }
 
 function getBoundaryText(brief: BriefDocument) {
@@ -177,5 +186,14 @@ function claimsNoSec(text: string) {
     /no sec|without sec|sec.*not connected|not connected.*sec|未接入\s*sec|未接\s*sec|没有接入\s*sec|不接入\s*sec/i.test(
       text,
     ) && !/sec evidence draft|sec companyfacts|secprovider|cik/i.test(text)
+  );
+}
+
+function mentionsMissingMarketBoundaries(text: string) {
+  return (
+    /(real-time price|market price|实时股价|实时行情)/i.test(text) &&
+    /(consensus|一致预期)/i.test(text) &&
+    /(company ir|公司 ir)/i.test(text) &&
+    /(database|数据库)/i.test(text)
   );
 }

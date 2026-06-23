@@ -103,3 +103,8 @@ This page is for research and information reference only and does not constitute
 - Phase 9.4: real-time market snapshot MVP.
 - Phase 9.5: consensus / valuation input MVP.
 - Phase 9.6: evidence cache, generated brief persistence, and real `/s/[slug]` share pages.
+## Phase 9.3.1 Evidence Status Copy Fix
+
+Phase 9.3.1 fixes the visible evidence status copy for `evidenceLevel=search-and-sec`. When Search Evidence and SEC Evidence are both attached, the page now says that Tavily/search evidence and SEC companyfacts / submissions are connected, while real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification are still missing.
+
+This avoids the earlier contradiction where the status cards showed `SEC Provider=sec` but explanatory copy still said SEC was not connected. The data mode remains `evidence-draft`; the page still must not display `verified-real-data`.

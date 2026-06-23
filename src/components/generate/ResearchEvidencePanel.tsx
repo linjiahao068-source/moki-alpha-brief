@@ -1,3 +1,4 @@
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type {
   EvidenceConfidence,
   ResearchEvidenceContext,
@@ -18,6 +19,13 @@ export function ResearchEvidencePanel({
 
   const confidence = countConfidence(context);
   const factCounts = countFactTypes(context);
+  const evidenceStatus = getEvidenceStatusCopy({
+    evidenceLevel: context.evidenceLevel,
+    hasSearchEvidence: context.coverage.hasSearchEvidence,
+    hasSecEvidence: context.coverage.hasSecEvidence,
+    searchProvider: context.searchEvidencePack?.searchProvider,
+    secProvider: context.secEvidencePack?.provider,
+  });
   const combinedWarnings = Array.from(
     new Set([...(context.warnings || []), ...warnings].filter(Boolean)),
   );
@@ -30,12 +38,10 @@ export function ResearchEvidencePanel({
             Research Evidence Context
           </p>
           <h2 className="mt-1 text-base font-semibold leading-6 text-[var(--foreground)]">
-            {getEvidenceLabel(context.evidenceLevel)}
+            {evidenceStatus.label}
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--foreground)] opacity-75">
-            Unified evidence layer separating SEC official facts, search draft
-            context, and missing data coverage. It is still evidence-draft, not
-            verification-grade real data.
+            {evidenceStatus.boundaryDescription}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold leading-5">
@@ -159,13 +165,6 @@ function Pill({
       {children}
     </span>
   );
-}
-
-function getEvidenceLabel(level: ResearchEvidenceContext["evidenceLevel"]) {
-  if (level === "search-and-sec") return "Search + SEC Evidence Draft";
-  if (level === "sec-only") return "SEC Evidence Draft";
-  if (level === "search-only") return "Search Evidence Draft";
-  return "No Evidence Context";
 }
 
 function countConfidence(context: ResearchEvidenceContext) {

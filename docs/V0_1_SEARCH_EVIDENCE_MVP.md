@@ -202,3 +202,7 @@ See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
 Phase 9.3 keeps Search Evidence as a recent-context draft and merges it with SEC Evidence through `ResearchEvidenceContext`.
 
 Search snippets remain separate from official SEC financial facts. See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.
+
+## Phase 9.3.1 Evidence Status Copy Fix
+
+Phase 9.3.1 clarifies the Source Evidence panel copy. When Search Evidence and SEC Evidence are both attached, the Source Evidence panel now says it only displays web search evidence, while SEC companyfacts / submissions are shown separately in the SEC / Research Evidence sections. Search evidence remains draft context and is not SEC data, real-time price data, consensus data, or verification-grade real data.

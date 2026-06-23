@@ -404,6 +404,10 @@ function buildEvidenceSourceNote({
   const notes: string[] = [];
 
   if (researchEvidenceContext) {
+    if (researchEvidenceContext.evidenceLevel === "search-and-sec") {
+      notes.push("Search + SEC Evidence Draft: Tavily/search evidence and SEC companyfacts / submissions are attached.");
+    }
+
     notes.push(
       `Research Evidence Context: evidenceLevel=${researchEvidenceContext.evidenceLevel}; dataMode=evidence-draft; sourceCount=${researchEvidenceContext.sourceRegistry.length}; factCount=${researchEvidenceContext.factLedger.length}; missing=${researchEvidenceContext.coverage.missing.join(", ")}.`,
     );

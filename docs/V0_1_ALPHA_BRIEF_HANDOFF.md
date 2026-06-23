@@ -547,3 +547,18 @@ Added a unified evidence context layer:
 - Prompt injection now uses compact ResearchEvidenceContext rather than separate raw search/SEC payloads.
 
 Full handoff: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.
+
+### Phase 9.3.1: Evidence Status Copy Fix
+
+Status: completed in this iteration.
+
+This phase does not add data sources or generation features. It fixes user-facing evidence status copy for `evidenceLevel=search-and-sec` so the page no longer says SEC is missing when `SEC Provider=sec` or `secEvidencePack` is attached.
+
+The copy now distinguishes:
+
+- `none`: LLM Demo / No Live Data.
+- `search-only`: Search Evidence Draft.
+- `sec-only`: SEC Evidence Draft.
+- `search-and-sec`: Search + SEC Evidence Draft.
+
+`dataMode` remains `evidence-draft`; real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification remain out of scope.

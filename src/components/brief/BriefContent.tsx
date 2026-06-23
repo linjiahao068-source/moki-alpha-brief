@@ -56,8 +56,11 @@ export function BriefContent({ brief }: BriefContentProps) {
           ))}
           <SourceNote
             dataMode={brief.metadata.dataMode}
+            evidenceLevel={brief.researchEvidenceContext?.evidenceLevel}
             hasEvidencePack={Boolean(brief.evidencePack)}
             hasSecEvidencePack={Boolean(brief.secEvidencePack)}
+            searchProvider={brief.evidencePack?.searchProvider}
+            secProvider={brief.secEvidencePack?.provider}
             sourceNote={brief.sourceNote}
           />
         </div>

@@ -63,7 +63,12 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
     );
   }
 
-  if (!context && !brief.evidencePack && !brief.secEvidencePack && hasUnsupportedLiveDataClaim(brief)) {
+  if (
+    !context &&
+    !brief.evidencePack &&
+    !brief.secEvidencePack &&
+    hasUnsupportedLiveDataClaim(brief)
+  ) {
     warnings.push(
       "Quality: brief appears to claim live data, SEC, IR, consensus, or verified data without evidence.",
     );
@@ -135,6 +140,24 @@ function addEvidenceWarnings(brief: BriefDocument, warnings: string[]) {
     !sourceNoteMentionsSearchAndSec(brief)
   ) {
     warnings.push("Quality: sourceNote should explicitly say Search + SEC Evidence Draft.");
+  }
+
+  if (
+    (brief.researchEvidenceContext?.evidenceLevel === "search-and-sec" ||
+      brief.researchEvidenceContext?.evidenceLevel === "sec-only" ||
+      brief.secEvidencePack) &&
+    sourceNoteSaysNoSec(brief)
+  ) {
+    warnings.push("Quality: sourceNote says SEC is missing even though SEC evidence is attached.");
+  }
+
+  if (
+    brief.metadata.dataMode === "evidence-draft" &&
+    !sourceNoteMentionsMissingMarketBoundaries(brief)
+  ) {
+    warnings.push(
+      "Quality: sourceNote should mention missing real-time price, consensus, company IR, and database coverage.",
+    );
   }
 }
 
@@ -235,6 +258,23 @@ function sourceNoteMentionsEvidenceLevel(brief: BriefDocument) {
 function sourceNoteMentionsSearchAndSec(brief: BriefDocument) {
   const text = sourceNoteText(brief);
   return /search \+ sec evidence draft|search and sec evidence draft/i.test(text);
+}
+
+function sourceNoteSaysNoSec(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return /未接入\s*sec|未接\s*sec|no sec|without sec|sec not connected/i.test(
+    text,
+  );
+}
+
+function sourceNoteMentionsMissingMarketBoundaries(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return (
+    /(实时股价|real-time price|market price)/i.test(text) &&
+    /(一致预期|consensus)/i.test(text) &&
+    /(公司 ir|company ir)/i.test(text) &&
+    /(数据库|database)/i.test(text)
+  );
 }
 
 function sectionMentionsEvidence(

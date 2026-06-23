@@ -1,18 +1,38 @@
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { BriefDataMode, SourceNoteData } from "@/types/brief";
+import type {
+  ResearchEvidenceLevel,
+  SearchProviderName,
+  SecProviderName,
+} from "@/types/evidence";
 
 type SourceNoteProps = {
   sourceNote: SourceNoteData;
   dataMode: BriefDataMode;
   hasEvidencePack: boolean;
   hasSecEvidencePack?: boolean;
+  evidenceLevel?: ResearchEvidenceLevel;
+  searchProvider?: SearchProviderName;
+  secProvider?: SecProviderName;
 };
 
 export function SourceNote({
   sourceNote,
   dataMode,
+  evidenceLevel,
   hasEvidencePack,
   hasSecEvidencePack = false,
+  searchProvider,
+  secProvider,
 }: SourceNoteProps) {
+  const evidenceState = getEvidenceStatusCopy({
+    evidenceLevel,
+    hasSearchEvidence: hasEvidencePack,
+    hasSecEvidence: hasSecEvidencePack,
+    searchProvider,
+    secProvider,
+  });
+
   return (
     <section
       id={sourceNote.id}
@@ -23,8 +43,7 @@ export function SourceNote({
           {sourceNote.title}
         </p>
         <span className="inline-flex w-fit max-w-full rounded-full border border-[var(--border)] bg-white px-3 py-1 font-mono text-xs font-semibold leading-5 text-[var(--foreground)] opacity-75">
-          {dataMode} /{" "}
-          {getEvidenceLabel(hasEvidencePack, hasSecEvidencePack)}
+          {dataMode} / {evidenceState.label}
         </span>
       </div>
       <div className="mt-3 space-y-3 text-[15px] leading-7 text-[var(--foreground)] opacity-85">
@@ -34,11 +53,4 @@ export function SourceNote({
       </div>
     </section>
   );
-}
-
-function getEvidenceLabel(hasSearch: boolean, hasSec: boolean) {
-  if (hasSearch && hasSec) return "search + sec evidence";
-  if (hasSec) return "sec evidence";
-  if (hasSearch) return "search evidence";
-  return "no evidence";
 }

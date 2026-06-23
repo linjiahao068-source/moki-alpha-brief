@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { DataBoundaryNote } from "@/components/brief/DataBoundaryNote";
+import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { DeepSeekModelMode } from "@/lib/llm/types";
 import type { BriefDocument } from "@/types/brief";
 import type {
@@ -54,6 +55,21 @@ export function GenerateBriefForm() {
     [result],
   );
   const coverage = result?.coverage || result?.brief?.evidenceSummary;
+  const evidenceLevel =
+    result?.evidenceLevel || researchEvidenceContext?.evidenceLevel;
+  const evidenceStatus = useMemo(
+    () =>
+      getEvidenceStatusCopy({
+        evidenceLevel,
+        hasSearchEvidence: Boolean(result?.brief?.evidencePack),
+        hasSecEvidence: Boolean(result?.brief?.secEvidencePack),
+        searchProvider:
+          result?.searchProvider || result?.brief?.evidencePack?.searchProvider,
+        secProvider:
+          result?.secProvider || result?.brief?.secEvidencePack?.provider,
+      }),
+    [evidenceLevel, result],
+  );
   const issueList = useMemo(
     () => (result?.issues || []).filter(Boolean),
     [result],
@@ -179,6 +195,7 @@ export function GenerateBriefForm() {
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
           当前为 LLM Demo / Evidence Draft。可选择搜索证据和 SEC official data；仍未接入实时股价、一致预期、公司 IR 正文解析或数据库，不构成投资建议。
         </div>
+
         <button
           type="submit"
           disabled={isLoading}
@@ -204,8 +221,8 @@ export function GenerateBriefForm() {
             <StatusItem label="Validation" value={result.ok ? "Passed" : "Needs attention"} mono />
             <StatusItem label="JSON Repair" value={getJsonRepairLabel(result)} mono />
             <StatusItem label="Data Mode" value={result.brief?.metadata.dataMode || "n/a"} mono />
-            <StatusItem label="Evidence" value={getEvidenceLabel(result.brief)} mono />
-            <StatusItem label="Evidence Level" value={result.evidenceLevel || researchEvidenceContext?.evidenceLevel || "none"} mono />
+            <StatusItem label="Evidence" value={evidenceStatus.label} mono />
+            <StatusItem label="Evidence Level" value={evidenceLevel || "none"} mono />
             <StatusItem label="Coverage" value={getCoverageLabel(coverage)} mono />
             <StatusItem label="Revenue / NI / EPS" value={getFactCoverageLabel(coverage)} mono />
             <StatusItem label="Search Provider" value={result.searchProvider || "n/a"} mono />
@@ -218,7 +235,11 @@ export function GenerateBriefForm() {
           </div>
 
           <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
-            {getGenerationStatusMessage(result)}
+            {getGenerationStatusMessage(result, evidenceStatus.shortDescription)}
+          </p>
+
+          <p className="mt-3 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
+            {evidenceStatus.warningDescription}
           </p>
 
           {result.jsonRepairSucceeded ? (
@@ -232,6 +253,7 @@ export function GenerateBriefForm() {
               使用 Deep Reasoning 模式生成；推理过程不会展示，仅展示最终结构化 BriefDocument。
             </p>
           ) : null}
+
           <IssuePanel title="Validation Issues" items={issueList} />
           <IssuePanel title="Quality Warnings" items={qualityWarningList} brand />
           <IssuePanel title="Search Warnings" items={searchWarningList} />
@@ -250,7 +272,10 @@ export function GenerateBriefForm() {
 
       {result?.brief?.evidencePack ? (
         <SourceEvidenceList
+          evidenceLevel={evidenceLevel}
           evidencePack={result.brief.evidencePack}
+          hasSecEvidence={Boolean(result.brief.secEvidencePack)}
+          secProvider={result.secProvider || result.brief.secEvidencePack?.provider}
           warnings={searchWarningList}
         />
       ) : null}
@@ -434,41 +459,21 @@ function getSecStats(brief?: BriefDocument) {
   };
 }
 
-function getEvidenceLabel(brief?: BriefDocument) {
-  const level = brief?.researchEvidenceContext?.evidenceLevel;
-  if (level === "search-and-sec") return "Search + SEC Evidence Draft";
-  if (level === "sec-only") return "SEC Evidence Draft";
-  if (level === "search-only") return "Search Evidence Draft";
-
-  const hasSearch = Boolean(brief?.evidencePack);
-  const hasSec = Boolean(brief?.secEvidencePack);
-
-  if (hasSearch && hasSec) return "Search + SEC Evidence Draft";
-  if (hasSec) return "SEC Evidence Draft";
-  if (hasSearch) return "Search Evidence Draft";
-  return "None / No Live Data";
-}
-
-function getGenerationStatusMessage(result: GenerateApiResult) {
+function getGenerationStatusMessage(
+  result: GenerateApiResult,
+  fallbackCopy: string,
+) {
   const level = result.evidenceLevel || result.brief?.researchEvidenceContext?.evidenceLevel;
 
   if (result.provider === "mock" && result.isFallback && level && level !== "none") {
     return "Evidence was fetched, but LLM generation failed. Showing fallback mock brief.";
   }
 
-  if (result.provider === "deepseek" && level === "search-and-sec") {
-    return "Search + SEC Evidence Draft generated with DeepSeek. SEC companyfacts / submissions and search evidence are attached; real-time price, consensus estimates, company IR narrative parsing, and database save are still not connected.";
+  if (result.provider === "deepseek") {
+    return fallbackCopy;
   }
 
-  if (level === "sec-only") {
-    return "SEC Evidence Draft is attached. SEC companyfacts / submissions are connected; search evidence, real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
-  }
-
-  if (level === "search-only") {
-    return "Search Evidence Draft is attached. SEC official data, real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
-  }
-
-  return "LLM Demo / No Live Data. Real-time price, consensus estimates, company IR narrative parsing, and database save are not connected.";
+  return fallbackCopy;
 }
 
 function getJsonRepairLabel(result: GenerateApiResult) {

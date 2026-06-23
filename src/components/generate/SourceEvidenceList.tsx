@@ -1,13 +1,18 @@
-﻿import type {
+import type {
   EvidenceConfidence,
   EvidenceNewsItem,
   EvidencePack,
   EvidenceSource,
+  ResearchEvidenceLevel,
+  SecProviderName,
 } from "@/types/evidence";
 import type { ReactNode } from "react";
 
 type SourceEvidenceListProps = {
   evidencePack?: EvidencePack;
+  evidenceLevel?: ResearchEvidenceLevel;
+  hasSecEvidence?: boolean;
+  secProvider?: SecProviderName;
   warnings?: string[];
 };
 
@@ -20,6 +25,9 @@ type DisplayEvidenceItem = EvidenceNewsItem & {
 
 export function SourceEvidenceList({
   evidencePack,
+  evidenceLevel,
+  hasSecEvidence = false,
+  secProvider,
   warnings = [],
 }: SourceEvidenceListProps) {
   if (!evidencePack) return null;
@@ -32,6 +40,7 @@ export function SourceEvidenceList({
     : evidencePack.sources.map(sourceToDisplayItem);
   const counts = countConfidence(items, evidencePack.sources);
   const isMock = evidencePack.searchProvider === "mock";
+  const hasAttachedSec = hasSecEvidence || secProvider === "sec";
   const combinedWarnings = Array.from(
     new Set([...warnings, ...(evidencePack.warnings || [])].filter(Boolean)),
   );
@@ -47,7 +56,7 @@ export function SourceEvidenceList({
             {isMock ? "Mock Search Evidence" : "Search Evidence Draft"}
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--foreground)] opacity-75">
-            Search evidence is a draft research aid. It is not SEC data, real-time price data, consensus data, or verified real data.
+            {getSourceEvidenceDescription({ evidenceLevel, hasAttachedSec })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold leading-5">
@@ -135,6 +144,20 @@ export function SourceEvidenceList({
       </div>
     </section>
   );
+}
+
+function getSourceEvidenceDescription({
+  evidenceLevel,
+  hasAttachedSec,
+}: {
+  evidenceLevel?: ResearchEvidenceLevel;
+  hasAttachedSec: boolean;
+}) {
+  if (evidenceLevel === "search-and-sec" || hasAttachedSec) {
+    return "本区域仅展示网页搜索证据；SEC companyfacts / submissions 会在 SEC / Research Evidence 区域单独展示。搜索证据不是 SEC 数据、实时股价、一致预期或验证级真实数据。";
+  }
+
+  return "Search evidence is a draft research aid. It is not SEC data, real-time price data, consensus data, or verification-grade real data.";
 }
 
 function mergeSourceMeta(

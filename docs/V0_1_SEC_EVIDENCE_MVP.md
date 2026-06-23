@@ -152,3 +152,7 @@ SEC facts 是官方披露数据，但抽取逻辑仍是 MVP。本页面仅供研
 Phase 9.3 adds `ResearchEvidenceContext`, which keeps Search Evidence and SEC Evidence separate while exposing one unified context to the prompt and `/generate` QA UI.
 
 See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.
+
+## Phase 9.3.1 Evidence Status Copy Fix
+
+Phase 9.3.1 updates user-facing status copy when SEC Evidence is attached. If `SEC Provider=sec` or `evidenceLevel=search-and-sec`, the UI must say that SEC companyfacts / submissions are connected. It must not say SEC is missing. The page remains `evidence-draft` and still lacks real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification.
