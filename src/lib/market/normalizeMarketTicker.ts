@@ -30,6 +30,22 @@ export function normalizeMarketTicker(
   };
 }
 
+export function normalizeTickerForStockApi(
+  ticker: string,
+  region: MarketConfig["dataRegion"] = "auto",
+) {
+  const normalized = normalizeMarketTicker(ticker, region);
+
+  if (normalized.region === "hk") {
+    return `HK${normalized.hkCode || normalized.symbol.replace(".HK", "").padStart(5, "0")}`;
+  }
+
+  const raw = normalized.raw.replaceAll(".", "-");
+  if (/^US[A-Z0-9-]+$/.test(raw)) return raw;
+
+  return `US${raw}`;
+}
+
 export function isValidMarketTicker(ticker: string) {
   return /^[A-Z0-9.-]{1,12}$/.test(ticker.trim().toUpperCase());
 }

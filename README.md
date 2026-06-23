@@ -2,7 +2,7 @@
 
 Moki Alpha Brief is a V0.1 public research brief clone for a buy-side style NVDA memo.
 
-Current status: V0.1 static share page plus Phase 9.5 free Market Evidence MVP based on global-stock-data request patterns. It defaults to evidence-draft / mock-safe behavior and keeps the Moki black, white, and gold visual system.
+Current status: V0.1 static share page plus Phase 9.5.1 free Market Evidence MVP with `stock-api`, `global-stock-data`, and mock fallback. It defaults to evidence-draft / mock-safe behavior and keeps the Moki black, white, and gold visual system.
 
 ## Local Run
 
@@ -47,7 +47,9 @@ DEEPSEEK_MODEL=deepseek-chat
 
 `/generate` can choose Fast (`deepseek-chat`) or Deep Reasoning (`deepseek-reasoner`). The reasoner mode does not show, save, or pass back internal reasoning; it only renders the final structured BriefDocument JSON.
 
-`/generate` can also enable Search, SEC, Company IR, and Market Evidence Draft modes. Without `TAVILY_API_KEY`, search-backed IR falls back to mock IR evidence. Market Evidence uses `MARKET_PROVIDER=global-stock-data` by default and falls back to mock market evidence if public sources are unavailable.
+`/generate` can also enable Search, SEC, Company IR, and Market Evidence Draft modes. Without `TAVILY_API_KEY`, search-backed IR falls back to mock IR evidence. Market Evidence uses `MARKET_PROVIDER=auto-free` by default and tries `stock-api -> global-stock-data -> mock`.
+
+Market Evidence is third-party free quote / volume / recent daily kline context only. It may be delayed, incomplete, field-limited, or unavailable. It is not a formal trading quote, not consensus, not a formal rating, not a formal target price, and not verified-real-data.
 
 ## Docs
 

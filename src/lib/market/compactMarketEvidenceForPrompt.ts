@@ -8,6 +8,8 @@ export function compactMarketEvidenceForPrompt(pack?: MarketEvidencePack) {
     ticker: pack.ticker,
     companyName: pack.companyName,
     provider: pack.provider,
+    providerChain: pack.providerChain,
+    attemptedProviders: pack.attemptedProviders,
     dataMode: pack.dataMode,
     quote: pack.quote
       ? {

@@ -177,3 +177,29 @@ Market evidence is third-party free quote / volume / recent daily kline context 
 Consensus estimates, database save, saved share links, and manual verification remain missing.
 
 See: `docs/V0_1_MARKET_DATA_MVP.md`.
+
+## Phase 9.5.1 Stock API Provider Update
+
+Phase 9.5.1 keeps the same `ResearchEvidenceContext` shape and adds provider compatibility inside `marketEvidencePack`.
+
+Market provider support now includes:
+
+- `stock-api`
+- `global-stock-data`
+- `mock`
+
+Recommended local configuration:
+
+```env
+MARKET_PROVIDER=auto-free
+```
+
+`auto-free` attempts:
+
+```text
+stock-api -> global-stock-data -> mock
+```
+
+`marketEvidencePack.provider` records the final successful provider, while `providerChain` and `attemptedProviders` may record the configured chain and attempted providers. Market evidence remains third-party free market context only. It is not a formal trading quote, not consensus, not SEC official-financial data, not a formal rating, not a formal target price, and not verified-real-data.
+
+Consensus estimates, database save, saved share links, and manual verification remain missing.

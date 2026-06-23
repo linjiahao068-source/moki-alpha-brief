@@ -148,7 +148,7 @@ function buildDataBoundaryInstructions(context?: ResearchEvidenceContext) {
   if (context.evidenceLevel === "search-sec-ir-and-market") {
     sourceNoteRules.push(
       "- sourceNote must explicitly include: Search + SEC + IR + Market Evidence Draft.",
-      `- sourceNote must include SEC CIK=${context.secEvidencePack?.cik || "provided in context"}, recent filing count=${context.secEvidencePack?.recentFilings.length ?? "provided in context"}, fiscal fact count=${context.secEvidencePack?.fiscalFacts.length ?? "provided in context"}, search source count=${context.searchEvidencePack?.sources.length ?? "provided in context"}, IR source count=${context.irEvidencePack?.irItems.length ?? "provided in context"}, marketProvider=${context.marketEvidencePack?.provider || "provided in context"}, retrievedAt=${context.marketEvidencePack?.quote?.retrievedAt || "provided in context"}, and marketTimestamp=${context.marketEvidencePack?.quote?.marketTimestamp || "N/A"}.`,
+      `- sourceNote must include SEC CIK=${context.secEvidencePack?.cik || "provided in context"}, recent filing count=${context.secEvidencePack?.recentFilings.length ?? "provided in context"}, fiscal fact count=${context.secEvidencePack?.fiscalFacts.length ?? "provided in context"}, search source count=${context.searchEvidencePack?.sources.length ?? "provided in context"}, IR source count=${context.irEvidencePack?.irItems.length ?? "provided in context"}, marketProvider=${context.marketEvidencePack?.provider || "provided in context"}, providerChain=${context.marketEvidencePack?.providerChain?.join(" -> ") || "provided in context"}, retrievedAt=${context.marketEvidencePack?.quote?.retrievedAt || "provided in context"}, and marketTimestamp=${context.marketEvidencePack?.quote?.marketTimestamp || "N/A"}.`,
       "- Because Market evidence is connected in this request, do not write 'no real-time market price', 'market evidence not connected', or '未接实时股价'. Write that third-party free market evidence is attached and may be delayed or incomplete.",
     );
   }
@@ -176,8 +176,8 @@ function buildDataBoundaryInstructions(context?: ResearchEvidenceContext) {
 
   if (context.marketEvidencePack) {
     sourceNoteRules.push(
-      `- sourceNote must include Market Evidence Draft with marketProvider=${context.marketEvidencePack.provider}, retrievedAt=${context.marketEvidencePack.quote?.retrievedAt || context.marketEvidencePack.asOf}, marketTimestamp=${context.marketEvidencePack.quote?.marketTimestamp || "N/A"}, and priceHistoryPoints=${context.marketEvidencePack.priceHistory?.length || 0}.`,
-      "- sourceNote must say free public market data may be delayed or incomplete.",
+      `- sourceNote must include Market Evidence Draft with marketProvider=${context.marketEvidencePack.provider}, providerChain=${context.marketEvidencePack.providerChain?.join(" -> ") || context.marketEvidencePack.provider}, retrievedAt=${context.marketEvidencePack.quote?.retrievedAt || context.marketEvidencePack.asOf}, marketTimestamp=${context.marketEvidencePack.quote?.marketTimestamp || "N/A"}, and priceHistoryPoints=${context.marketEvidencePack.priceHistory?.length || 0}.`,
+      "- sourceNote must say provider may be stock-api / global-stock-data / mock fallback and that free public market data may be delayed, incomplete, field-limited, or unavailable.",
       "- Do not call market evidence consensus, SEC official-financial data, verification-grade data, a formal trading quote, or investment advice.",
     );
   }

@@ -155,6 +155,8 @@ async function prepareEvidenceInput(
         ? {
             marketProvider: marketResult.provider,
             marketIsFallback: marketResult.isFallback,
+            marketProviderChain: marketResult.providerChain,
+            marketAttemptedProviders: marketResult.attemptedProviders,
             marketWarnings:
               marketResult.warnings || [marketResult.error || ""].filter(Boolean),
           }

@@ -598,7 +598,7 @@ Added Market Evidence support based on public `global-stock-data` request patter
 
 - `MarketEvidencePack`, `MarketQuote`, and `MarketPricePoint` types.
 - `src/lib/market/*` provider layer with `mock` and `global-stock-data` modes.
-- `MARKET_PROVIDER=global-stock-data`, `MARKET_MAX_DAILY_POINTS=30`, and `MARKET_DATA_REGION=auto`.
+- `MARKET_PROVIDER=auto-free`, `MARKET_MAX_DAILY_POINTS=30`, and `MARKET_DATA_REGION=auto`.
 - `POST /api/market-evidence`.
 - `POST /api/generate-brief` supports `useMarket=true`.
 - `ResearchEvidenceContext` can combine Search + SEC + IR + Market evidence.
@@ -617,3 +617,20 @@ Important boundaries:
 - `dataMode` remains `evidence-draft`.
 
 Full handoff: `docs/V0_1_MARKET_DATA_MVP.md`.
+
+### Phase 9.5.1: stock-api provider + auto-free fallback
+
+Status: completed in this iteration.
+
+Added `stock-api` as a server-side Market Evidence provider:
+
+- Installed `stock-api`.
+- Added `stockApiMarketProvider`.
+- Added `MARKET_PROVIDER=auto-free` as the recommended default.
+- `auto-free` fallback order is `stock-api -> global-stock-data -> mock`.
+- `/api/market-evidence` returns `providerChain`, `attemptedProviders`, and fallback warnings.
+- `/generate` remains compatible with Search + SEC + IR + Market Evidence Draft.
+- `ResearchEvidenceContext` shape is unchanged except for the market provider fields.
+- Market Evidence remains evidence-draft only, not verified-real-data, not consensus, not a formal trading quote, not a formal target price, and not a formal rating.
+
+Future commercial-grade providers such as Twelve Data, Polygon, or Finnhub remain out of scope for this phase.

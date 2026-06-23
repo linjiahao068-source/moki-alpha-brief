@@ -91,6 +91,10 @@ export function ResearchEvidencePanel({
           <SummaryRow label="SEC sources" value={String(context.secEvidencePack?.sources.length || 0)} />
           <SummaryRow label="IR sources" value={String(context.irEvidencePack?.sources.length || 0)} />
           <SummaryRow label="Market sources" value={String(context.marketEvidencePack?.sources.length || 0)} />
+          <SummaryRow
+            label="Market provider chain"
+            value={context.marketEvidencePack?.providerChain?.join(" -> ") || "n/a"}
+          />
           <SummaryRow label="High / Medium / Low" value={`${confidence.high} / ${confidence.medium} / ${confidence.low}`} />
         </SummaryBlock>
 

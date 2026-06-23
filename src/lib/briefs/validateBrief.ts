@@ -135,7 +135,11 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     if (brief.marketEvidencePack.dataMode !== "evidence-draft") {
       issues.push("marketEvidencePack.dataMode must be evidence-draft");
     }
-    if (brief.marketEvidencePack.provider !== "mock" && brief.marketEvidencePack.provider !== "global-stock-data") {
+    if (
+      brief.marketEvidencePack.provider !== "mock" &&
+      brief.marketEvidencePack.provider !== "stock-api" &&
+      brief.marketEvidencePack.provider !== "global-stock-data"
+    ) {
       issues.push("marketEvidencePack.provider is invalid");
     }
     if (!brief.marketEvidencePack.sources?.length) {

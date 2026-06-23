@@ -37,8 +37,10 @@ type GenerateApiResult = {
   irProvider?: "mock" | "search";
   irIsFallback?: boolean;
   irWarnings?: string[];
-  marketProvider?: "mock" | "global-stock-data";
+  marketProvider?: "mock" | "stock-api" | "global-stock-data";
   marketIsFallback?: boolean;
+  marketProviderChain?: Array<"mock" | "stock-api" | "global-stock-data">;
+  marketAttemptedProviders?: Array<"mock" | "stock-api" | "global-stock-data">;
   marketWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
@@ -279,6 +281,7 @@ export function GenerateBriefForm() {
             <StatusItem label="Company IR Coverage" value={coverage?.hasCompanyIr ? "yes" : "no"} mono />
             <StatusItem label="Earnings / Guidance" value={getIrCoverageLabel(coverage)} mono />
             <StatusItem label="Market Provider" value={result.marketProvider || "n/a"} mono />
+            <StatusItem label="Market Chain" value={formatProviderChain(result.marketProviderChain)} mono />
             <StatusItem label="Market Price" value={marketStats.price} mono />
             <StatusItem label="Market Timestamp" value={marketStats.timestamp} mono />
             <StatusItem label="Market History" value={marketStats.history} mono />
@@ -548,6 +551,10 @@ function getMarketStats(brief?: BriefDocument) {
       ? `${pack.priceHistory.length} daily`
       : "N/A",
   };
+}
+
+function formatProviderChain(chain?: string[]) {
+  return chain?.length ? chain.join(" -> ") : "n/a";
 }
 
 function getGenerationStatusMessage(

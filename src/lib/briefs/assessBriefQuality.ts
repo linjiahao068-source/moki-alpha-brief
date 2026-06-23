@@ -210,7 +210,7 @@ function addEvidenceWarnings(brief: BriefDocument, warnings: string[]) {
 
   if (
     brief.metadata.dataMode === "evidence-draft" &&
-    !sourceNoteMentionsMissingMarketBoundaries(brief)
+    !sourceNoteMentionsMissingMarketBoundariesV2(brief)
   ) {
     warnings.push(
       "Quality: sourceNote should mention missing real-time price, consensus, company IR, and database coverage.",
@@ -241,6 +241,11 @@ function addMarketWarnings(brief: BriefDocument, warnings: string[]) {
   }
   if (!sourceNoteMentionsMarketProvider(brief)) {
     warnings.push("Quality: sourceNote should mention marketProvider.");
+  }
+  if (!sourceNoteMentionsMarketDelayWarning(brief)) {
+    warnings.push(
+      "Quality: sourceNote should mention that free market data may be delayed or incomplete.",
+    );
   }
   if (!sectionMentionsMarket(brief, "executive-view")) {
     warnings.push(
@@ -390,6 +395,38 @@ function sourceNoteMentionsMarketProvider(brief: BriefDocument) {
   const text = sourceNoteText(brief);
   return /marketprovider|market provider|market evidence draft|third-party free market|free public market data/i.test(
     text,
+  );
+}
+
+function sourceNoteMentionsMarketDelayWarning(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return /delayed or incomplete|may be delayed|field[s]? (may be )?missing|free public market data/i.test(
+    text,
+  );
+}
+
+function sourceNoteMentionsMissingMarketBoundariesV2(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  const legacyMatch = sourceNoteMentionsMissingMarketBoundaries(brief);
+  if (
+    brief.marketEvidencePack ||
+    evidenceLevelIncludesMarket(brief.researchEvidenceContext?.evidenceLevel)
+  ) {
+    return legacyMatch || (
+      /(market evidence draft|marketprovider|third-party free market|free public market data|delayed or incomplete)/i.test(
+        text,
+      ) &&
+      /(consensus|consensus estimates)/i.test(text) &&
+      /(database|database save)/i.test(text) &&
+      /(manual verification)/i.test(text)
+    );
+  }
+
+  return legacyMatch || (
+    /(real-time price|market price|real-time market price)/i.test(text) &&
+    /(consensus|consensus estimates)/i.test(text) &&
+    /(company ir|ir evidence|company ir evidence)/i.test(text) &&
+    /(database|database save)/i.test(text)
   );
 }
 

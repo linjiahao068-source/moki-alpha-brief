@@ -8,7 +8,13 @@ export type SecProviderName = "mock" | "sec";
 
 export type IrProviderName = "mock" | "search";
 
-export type MarketProviderName = "mock" | "global-stock-data";
+export type MarketProviderName =
+  | "auto-free"
+  | "stock-api"
+  | "global-stock-data"
+  | "mock";
+
+export type MarketEvidenceProviderName = Exclude<MarketProviderName, "auto-free">;
 
 export type ResearchEvidenceLevel =
   | "none"
@@ -230,7 +236,7 @@ export type IrEvidencePack = {
 export type MarketQuote = {
   symbol: string;
   name?: string;
-  provider: MarketProviderName;
+  provider: MarketEvidenceProviderName;
   price?: number;
   previousClose?: number;
   open?: number;
@@ -262,11 +268,13 @@ export type MarketEvidencePack = {
   asOf: string;
   ticker: string;
   companyName?: string;
-  provider: MarketProviderName;
+  provider: MarketEvidenceProviderName;
   dataMode: "evidence-draft";
   quote?: MarketQuote;
   priceHistory?: MarketPricePoint[];
   sources: EvidenceSource[];
+  providerChain?: MarketEvidenceProviderName[];
+  attemptedProviders?: MarketEvidenceProviderName[];
   warnings?: string[];
 };
 

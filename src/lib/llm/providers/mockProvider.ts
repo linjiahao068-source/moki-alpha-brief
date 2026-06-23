@@ -256,7 +256,7 @@ function buildMockEvidenceSourceNote({
   if (marketEvidencePack) {
     const quote = marketEvidencePack.quote;
     parts.push(
-      `Market Evidence Draft: marketProvider=${marketEvidencePack.provider}; retrievedAt=${quote?.retrievedAt || marketEvidencePack.asOf || now}; marketTimestamp=${quote?.marketTimestamp || "N/A"}; sourceCount=${marketEvidencePack.sources.length}; priceHistoryPoints=${marketEvidencePack.priceHistory?.length || 0}. Free public market data may be delayed or incomplete.`,
+      `Market Evidence Draft: marketProvider=${marketEvidencePack.provider}; providerChain=${marketEvidencePack.providerChain?.join(" -> ") || marketEvidencePack.provider}; retrievedAt=${quote?.retrievedAt || marketEvidencePack.asOf || now}; marketTimestamp=${quote?.marketTimestamp || "N/A"}; sourceCount=${marketEvidencePack.sources.length}; priceHistoryPoints=${marketEvidencePack.priceHistory?.length || 0}. Provider may be stock-api / global-stock-data / mock fallback. Free public market data may be delayed, incomplete, field-limited, or unavailable.`,
     );
   }
 

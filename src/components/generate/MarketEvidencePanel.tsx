@@ -13,6 +13,13 @@ export function MarketEvidencePanel({
   if (!marketEvidencePack) return null;
 
   const quote = marketEvidencePack.quote;
+  const providerChain = marketEvidencePack.providerChain || [
+    marketEvidencePack.provider,
+  ];
+  const attemptedProviders = marketEvidencePack.attemptedProviders || [
+    marketEvidencePack.provider,
+  ];
+  const fallbackUsed = attemptedProviders.length > 1;
   const combinedWarnings = Array.from(
     new Set([...(marketEvidencePack.warnings || []), ...warnings].filter(Boolean)),
   );
@@ -38,6 +45,8 @@ export function MarketEvidencePanel({
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold leading-5">
           <Pill tone="brand">{marketEvidencePack.provider}</Pill>
+          <Pill>{providerChain.join(" -> ")}</Pill>
+          {fallbackUsed ? <Pill>fallback context</Pill> : null}
           <Pill>{marketEvidencePack.sources.length} sources</Pill>
           <Pill>{marketEvidencePack.priceHistory?.length || 0} daily points</Pill>
         </div>
@@ -58,6 +67,8 @@ export function MarketEvidencePanel({
         <Metric label="RetrievedAt" value={quote?.retrievedAt || marketEvidencePack.asOf || "N/A"} />
         <Metric label="Market Timestamp" value={quote?.marketTimestamp || "N/A"} />
         <Metric label="Date Status" value={quote?.dateStatus || getDateStatus(quote)} />
+        <Metric label="Provider Chain" value={providerChain.join(" -> ")} />
+        <Metric label="Attempted Providers" value={attemptedProviders.join(" -> ")} />
       </div>
 
       {combinedWarnings.length ? (

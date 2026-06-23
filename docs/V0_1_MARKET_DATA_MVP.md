@@ -25,21 +25,38 @@ Out of scope:
 - Raw provider response display.
 - DeepSeek internal reasoning display.
 
+## Phase 9.5.1 Update
+
+Phase 9.5.1 adds the `stock-api` package as an additional server-side market provider and introduces `MARKET_PROVIDER=auto-free`.
+
+`auto-free` tries providers in this order:
+
+```text
+stock-api -> global-stock-data -> mock
+```
+
+The `stockApiMarketProvider` uses `stocks.auto.getStock()` for the normalized quote snapshot and `stocks.auto.getKlines(..., { period: "day" })` for recent daily kline context. It maps the stable public fields into `MarketEvidencePack`, never exposes raw provider responses, and remains server-side only.
+
+This phase still does not add Twelve Data, Polygon, Finnhub, consensus estimates, a database, saved generated results, real share links, formal target prices, formal ratings, or verified-real-data.
+
 ## Environment
 
 `.env.example` now includes:
 
 ```env
-MARKET_PROVIDER=global-stock-data
+MARKET_PROVIDER=auto-free
 MARKET_MAX_DAILY_POINTS=30
 MARKET_DATA_REGION=auto
 ```
 
-`MARKET_PROVIDER=global-stock-data` uses `globalStockDataMarketProvider`.
+Supported values:
 
-`MARKET_PROVIDER=mock` uses `mockMarketProvider`.
+- `auto-free`: `stock-api -> global-stock-data -> mock`.
+- `stock-api`: try `stockApiMarketProvider`, then fall back to mock.
+- `global-stock-data`: try `globalStockDataMarketProvider`, then fall back to mock.
+- `mock`: use `mockMarketProvider` only.
 
-No API key is required. There is no `NEXT_PUBLIC_MARKET_PROVIDER`.
+No API key is required. There is no `NEXT_PUBLIC_MARKET_PROVIDER`, and no real secret should be written into code or documentation.
 
 ## MarketEvidencePack
 
@@ -53,7 +70,7 @@ The pack is always:
 
 ```ts
 dataMode: "evidence-draft"
-provider: "mock" | "global-stock-data"
+provider: "mock" | "stock-api" | "global-stock-data"
 ```
 
 Market evidence is not SEC official-financial data, not consensus, and not verified-real-data.
@@ -68,7 +85,14 @@ When a provider has no market timestamp, `dateStatus` is `retrieved-only`.
 
 ## Provider Strategy
 
-`globalStockDataMarketProvider` uses TypeScript `fetch` and public endpoints inspired by `global-stock-data`:
+`stockApiMarketProvider` uses the `stock-api` Node / TypeScript API:
+
+- `stocks.auto.getStock(code)` for quote context.
+- `stocks.auto.getKlines(code, { period: "day", count })` for daily kline context.
+- US tickers are adapted as `USNVDA`, `USTSLA`, `USORCL`, `USSNOW`, and `USMSFT`.
+- Hong Kong tickers such as `0700.HK` are lightly adapted to `HK00700`.
+
+`globalStockDataMarketProvider` remains available and uses TypeScript `fetch` and public endpoints inspired by `global-stock-data`:
 
 - Yahoo chart for quote context and daily kline.
 - Sina US daily kline where available.
@@ -76,8 +100,10 @@ When a provider has no market timestamp, `dateStatus` is `retrieved-only`.
 
 The provider returns normalized quote, recent daily kline, sources, and warnings only. It never returns raw provider responses to the frontend.
 
-If all public market sources fail, `buildMarketEvidencePack` falls back to `mockMarketProvider` and records:
+If configured public market sources fail, `buildMarketEvidencePack` falls back according to the selected provider chain and records warnings such as:
 
+- `stock-api failed; falling back to global-stock-data.`
+- `global-stock-data failed; falling back to mock.`
 - `Provider fallback used when public source is unavailable.`
 - `Free public market data source may be delayed or incomplete.`
 - `Market evidence is for research context only, not official trading quote.`
@@ -105,8 +131,10 @@ Response:
 ```json
 {
   "ok": true,
-  "provider": "global-stock-data",
+  "provider": "stock-api",
   "isFallback": false,
+  "providerChain": ["stock-api", "global-stock-data", "mock"],
+  "attemptedProviders": ["stock-api"],
   "marketEvidencePack": {},
   "warnings": []
 }
@@ -253,4 +281,4 @@ This MVP improves evidence-draft market context only.
 
 It is not a formal trading quote, not a trading signal system, not a rating system, not consensus, and not verified-real-data.
 
-Future commercial stability can add providers such as Twelve Data, Polygon, or Finnhub, but Phase 9.5 intentionally does not do that.
+Future commercial stability can add providers such as Twelve Data, Polygon, or Finnhub, but Phase 9.5.1 intentionally does not do that.

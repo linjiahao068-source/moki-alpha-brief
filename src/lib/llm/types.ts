@@ -53,6 +53,8 @@ export type GenerateBriefResult = {
   irWarnings?: string[];
   marketProvider?: MarketEvidencePack["provider"];
   marketIsFallback?: boolean;
+  marketProviderChain?: MarketEvidencePack["providerChain"];
+  marketAttemptedProviders?: MarketEvidencePack["attemptedProviders"];
   marketWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;

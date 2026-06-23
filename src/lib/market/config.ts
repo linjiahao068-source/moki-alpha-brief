@@ -4,8 +4,13 @@ export const MARKET_DEFAULT_MAX_DAILY_POINTS = 30;
 
 export function getMarketConfig(): MarketConfig {
   const requested = process.env.MARKET_PROVIDER?.trim().toLowerCase();
-  const provider =
-    requested === "mock" ? "mock" : "global-stock-data";
+  const provider: MarketConfig["provider"] =
+    requested === "mock" ||
+    requested === "stock-api" ||
+    requested === "global-stock-data" ||
+    requested === "auto-free"
+      ? requested
+      : "auto-free";
   const maxDailyPoints = Number(process.env.MARKET_MAX_DAILY_POINTS);
   const requestedRegion = process.env.MARKET_DATA_REGION?.trim().toLowerCase();
   const dataRegion =

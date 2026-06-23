@@ -77,10 +77,10 @@ export function getEvidenceStatusCopy({
   return {
     label,
     shortDescription: `${label}: connected evidence = ${connected}. ${providerText} Missing: ${missing}. This remains evidence-draft and is not investment advice.`,
-    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, IR, and Market keep separate roles: search for recent public context, SEC for official companyfacts / submissions, IR for company official narrative or management commentary, and Market for third-party free quote / volume / recent daily kline context. ${hasMarket ? "Market data may be delayed or incomplete." : "Market evidence is not connected."} Missing: ${missing}.`,
+    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, IR, and Market keep separate roles: search for recent public context, SEC for official companyfacts / submissions, IR for company official narrative or management commentary, and Market for third-party free quote / volume / recent daily kline context. ${hasMarket ? "Market provider may be stock-api, global-stock-data, or mock fallback; free market data may be delayed, incomplete, field-limited, or unavailable." : "Market evidence is not connected."} Missing: ${missing}.`,
     warningDescription:
       hasMarket
-        ? "Research Evidence Context is still an MVP. Third-party free market evidence may be delayed or incomplete. Consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
+        ? "Research Evidence Context is still an MVP. Third-party free market evidence may come from stock-api, global-stock-data, or mock fallback and may be delayed, incomplete, field-limited, or unavailable. Consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
         : "Research Evidence Context is still an MVP. It does not include market evidence, consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, or transcript full-text parsing.",
     mvpLabel: "Research Evidence Context MVP",
   };

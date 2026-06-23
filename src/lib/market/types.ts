@@ -1,5 +1,6 @@
 import type {
   MarketEvidencePack,
+  MarketEvidenceProviderName,
   MarketProviderName,
   MarketQuote,
   MarketPricePoint,
@@ -33,10 +34,12 @@ export type MarketProviderPayload = {
 
 export type MarketEvidenceResult = {
   ok: boolean;
-  provider: MarketProviderName;
+  provider: MarketEvidenceProviderName;
   isFallback?: boolean;
   marketEvidencePack?: MarketEvidencePack;
   error?: string;
+  providerChain?: MarketEvidenceProviderName[];
+  attemptedProviders?: MarketEvidenceProviderName[];
   warnings?: string[];
 };
 
