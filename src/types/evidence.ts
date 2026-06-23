@@ -6,11 +6,17 @@ export type SearchProviderName = "mock" | "tavily";
 
 export type SecProviderName = "mock" | "sec";
 
+export type IrProviderName = "mock" | "search";
+
 export type ResearchEvidenceLevel =
   | "none"
   | "search-only"
   | "sec-only"
-  | "search-and-sec";
+  | "ir-only"
+  | "search-and-sec"
+  | "search-and-ir"
+  | "sec-and-ir"
+  | "search-sec-and-ir";
 
 export type EvidenceQueryPurpose =
   | "recent-news"
@@ -21,6 +27,14 @@ export type EvidenceQueryPurpose =
 export type EvidenceSourceType =
   | "news"
   | "company-ir"
+  | "earnings-release"
+  | "press-release"
+  | "investor-presentation"
+  | "shareholder-letter"
+  | "quarterly-results"
+  | "official-web"
+  | "wire-release"
+  | "other"
   | "web"
   | "sec-submission"
   | "sec-companyfacts"
@@ -150,6 +164,59 @@ export type SecEvidencePack = {
   warnings?: string[];
 };
 
+export type IrEvidenceSourceType =
+  | "company-ir"
+  | "earnings-release"
+  | "press-release"
+  | "investor-presentation"
+  | "shareholder-letter"
+  | "quarterly-results"
+  | "official-web"
+  | "wire-release"
+  | "other";
+
+export type IrEvidenceTheme =
+  | "management-commentary"
+  | "guidance"
+  | "product-update"
+  | "financial-commentary"
+  | "capital-allocation"
+  | "risk-disclosure"
+  | "other";
+
+export type IrAllowedUse =
+  | "management-commentary"
+  | "company-guidance-context"
+  | "business-update"
+  | "context-only";
+
+export type IrEvidenceItem = {
+  id: string;
+  title: string;
+  url?: string;
+  domain?: string;
+  publisher?: string;
+  sourceType: IrEvidenceSourceType;
+  publishedAt?: string;
+  retrievedAt: string;
+  dateStatus?: "published" | "retrieved-only" | "unknown";
+  snippet: string;
+  confidence: EvidenceConfidence;
+  theme: IrEvidenceTheme;
+  allowedUse: IrAllowedUse;
+};
+
+export type IrEvidencePack = {
+  asOf: string;
+  ticker: string;
+  companyName?: string;
+  provider: IrProviderName;
+  dataMode: "evidence-draft";
+  irItems: IrEvidenceItem[];
+  sources: EvidenceSource[];
+  warnings?: string[];
+};
+
 export type EvidencePack = {
   asOf: string;
   ticker: string;
@@ -168,10 +235,18 @@ export type EvidencePack = {
 
 export type ResearchEvidenceSource = {
   id: string;
-  sourceKind: "search" | "sec" | "manual" | "mock";
+  sourceKind: "search" | "sec" | "ir" | "manual" | "mock";
   sourceType:
     | "news"
     | "company-ir"
+    | "earnings-release"
+    | "press-release"
+    | "investor-presentation"
+    | "shareholder-letter"
+    | "quarterly-results"
+    | "official-web"
+    | "wire-release"
+    | "other"
     | "web"
     | "sec-submission"
     | "sec-companyfacts"
@@ -195,9 +270,12 @@ export type ResearchEvidenceFact = {
     | "filing-metadata"
     | "recent-development"
     | "risk-catalyst"
+    | "management-commentary"
+    | "company-guidance-context"
+    | "business-update"
     | "market-discussion"
     | "llm-analysis-placeholder";
-  sourceKind: "sec" | "search" | "mock";
+  sourceKind: "sec" | "search" | "ir" | "mock";
   sourceId: string;
   label: string;
   value?: string | number;
@@ -211,6 +289,9 @@ export type ResearchEvidenceFact = {
     | "financial-analysis"
     | "recent-developments"
     | "risk-catalyst"
+    | "management-commentary"
+    | "company-guidance-context"
+    | "business-update"
     | "context-only"
     | "not-for-facts";
   note?: string;
@@ -226,7 +307,10 @@ export type EvidenceCoverageSummary = {
   hasEpsFact: boolean;
   hasMarketPrice: false;
   hasConsensus: false;
-  hasCompanyIr: false;
+  hasCompanyIr: boolean;
+  hasEarningsRelease: boolean;
+  hasManagementCommentary: boolean;
+  hasGuidanceContext: boolean;
   missing: string[];
   warnings: string[];
 };
@@ -239,6 +323,7 @@ export type ResearchEvidenceContext = {
   evidenceLevel: ResearchEvidenceLevel;
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  irEvidencePack?: IrEvidencePack;
   sourceRegistry: ResearchEvidenceSource[];
   factLedger: ResearchEvidenceFact[];
   coverage: EvidenceCoverageSummary;

@@ -401,3 +401,35 @@ See: `docs/V0_1_SEC_EVIDENCE_MVP.md`.
 It keeps search draft items, SEC official facts, and missing data boundaries separate. `dataMode` remains `evidence-draft`; `verified-real-data` is still not allowed in the current MVP.
 
 See: `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`.
+
+## Phase 9.4 Company IR Evidence Extension
+
+`BriefDocument` now supports an optional `irEvidencePack` alongside search `evidencePack`, `secEvidencePack`, and `researchEvidenceContext`.
+
+`IrEvidencePack` includes:
+
+- `ticker`
+- `companyName`
+- `provider`
+- `dataMode`
+- `irItems`
+- `sources`
+- `warnings`
+
+New `ResearchEvidenceContext.evidenceLevel` values:
+
+- `ir-only`
+- `search-and-ir`
+- `sec-and-ir`
+- `search-sec-and-ir`
+
+New coverage fields:
+
+- `hasCompanyIr`
+- `hasEarningsRelease`
+- `hasManagementCommentary`
+- `hasGuidanceContext`
+
+IR evidence is an evidence draft for company official narrative, management commentary, business updates, and company guidance context. It cannot be treated as SEC official-financial data, consensus estimates, real-time market price, or `verified-real-data`.
+
+See: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.

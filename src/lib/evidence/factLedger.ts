@@ -1,24 +1,29 @@
 import type {
   EvidenceNewsItem,
   EvidencePack,
+  IrEvidenceItem,
+  IrEvidencePack,
   ResearchEvidenceFact,
   SecEvidencePack,
   SecFiscalFact,
   SecFilingSummary,
 } from "@/types/evidence";
-import { getSearchSourceId, getSecSourceId } from "./sourceRegistry";
+import { getIrSourceId, getSearchSourceId, getSecSourceId } from "./sourceRegistry";
 
 export function buildFactLedger({
   searchEvidencePack,
   secEvidencePack,
+  irEvidencePack,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  irEvidencePack?: IrEvidencePack;
 }): ResearchEvidenceFact[] {
   return [
     ...buildSecFinancialFacts(secEvidencePack),
     ...buildSecFilingFacts(secEvidencePack),
     ...buildSearchFacts(searchEvidencePack),
+    ...buildIrFacts(irEvidencePack),
   ];
 }
 
@@ -132,6 +137,59 @@ function getAllowedUse(
   if (confidence === "low") return "context-only";
   if (item.theme === "risk") return "risk-catalyst";
   return "recent-developments";
+}
+
+function buildIrFacts(irEvidencePack?: IrEvidencePack) {
+  if (!irEvidencePack?.irItems?.length) return [];
+
+  return irEvidencePack.irItems.map((item, index) =>
+    irItemToLedgerFact(item, index),
+  );
+}
+
+function irItemToLedgerFact(
+  item: IrEvidenceItem,
+  index: number,
+): ResearchEvidenceFact {
+  const factType = getIrFactType(item);
+
+  return {
+    id: `ir-${factType}-${index + 1}`,
+    factType,
+    sourceKind: "ir",
+    sourceId: getIrSourceId(item.id),
+    label: item.title,
+    value: truncate(item.snippet, 360),
+    period: item.publishedAt || item.retrievedAt,
+    confidence: item.confidence,
+    allowedUse:
+      item.confidence === "low" ? "context-only" : getIrAllowedUse(item),
+    note:
+      "Company IR evidence draft item. Use for official company narrative, management commentary, business updates, or company guidance context only. Do not treat it as SEC official financial facts, consensus, or real-time market data.",
+  };
+}
+
+function getIrFactType(
+  item: IrEvidenceItem,
+): ResearchEvidenceFact["factType"] {
+  if (item.allowedUse === "company-guidance-context") {
+    return "company-guidance-context";
+  }
+  if (item.allowedUse === "business-update") return "business-update";
+  return "management-commentary";
+}
+
+function getIrAllowedUse(
+  item: IrEvidenceItem,
+): ResearchEvidenceFact["allowedUse"] {
+  if (item.allowedUse === "company-guidance-context") {
+    return "company-guidance-context";
+  }
+  if (item.allowedUse === "business-update") return "business-update";
+  if (item.allowedUse === "management-commentary") {
+    return "management-commentary";
+  }
+  return "context-only";
 }
 
 function slugify(value: string) {

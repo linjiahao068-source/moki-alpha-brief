@@ -98,11 +98,41 @@ It does not show raw SEC companyfacts JSON, raw Tavily response, raw model outpu
 
 This page is for research and information reference only and does not constitute investment advice. Search Evidence Draft and SEC Evidence Draft must not be treated as verified real data.
 
+## Phase 9.4 Company IR Evidence Update
+
+Phase 9.4 adds Company IR / earnings-release evidence to this context.
+
+New evidence levels:
+
+- `ir-only`
+- `search-and-ir`
+- `sec-and-ir`
+- `search-sec-and-ir`
+
+New context fields and roles:
+
+- `irEvidencePack`
+- `sourceKind: "ir"`
+- `management-commentary`
+- `company-guidance-context`
+- `business-update`
+
+Coverage now includes:
+
+- `hasCompanyIr`
+- `hasEarningsRelease`
+- `hasManagementCommentary`
+- `hasGuidanceContext`
+
+IR evidence is limited to company official narrative, management commentary, business updates, and company guidance context. It must not be treated as SEC official-financial data, consensus estimates, real-time market price, or verified real data.
+
+See: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.
+
 ## Suggested Next Phases
 
-- Phase 9.4: real-time market snapshot MVP.
-- Phase 9.5: consensus / valuation input MVP.
-- Phase 9.6: evidence cache, generated brief persistence, and real `/s/[slug]` share pages.
+- Phase 9.5: real-time market snapshot MVP.
+- Phase 9.6: consensus / valuation input MVP.
+- Phase 9.7: evidence cache, generated brief persistence, and real `/s/[slug]` share pages.
 ## Phase 9.3.1 Evidence Status Copy Fix
 
 Phase 9.3.1 fixes the visible evidence status copy for `evidenceLevel=search-and-sec`. When Search Evidence and SEC Evidence are both attached, the page now says that Tavily/search evidence and SEC companyfacts / submissions are connected, while real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification are still missing.

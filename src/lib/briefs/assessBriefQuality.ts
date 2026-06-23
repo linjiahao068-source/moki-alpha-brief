@@ -13,6 +13,7 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
   addEvidenceWarnings(brief, warnings);
   addSearchWarnings(brief, warnings);
   addSecWarnings(brief, warnings);
+  addIrWarnings(brief, warnings);
 
   if (context) {
     if (!sourceNoteMentionsEvidenceLevel(brief)) {
@@ -25,6 +26,33 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
     ) {
       warnings.push(
         "Quality: search-and-sec evidence should be reflected in Financial Deep Dive through SEC facts.",
+      );
+    }
+
+    if (
+      evidenceLevelIncludesIr(evidenceLevel) &&
+      !brief.irEvidencePack &&
+      !context.irEvidencePack
+    ) {
+      warnings.push("Quality: evidenceLevel includes IR but irEvidencePack is missing.");
+    }
+
+    if (evidenceLevelIncludesIr(evidenceLevel) && sourceNoteSaysNoIr(brief)) {
+      warnings.push("Quality: sourceNote says Company IR is missing even though IR evidence is attached.");
+    }
+
+    if (textTreatsIrAsConsensus(brief)) {
+      warnings.push("Quality: IR evidence or company guidance context must not be written as consensus.");
+    }
+
+    if (
+      context.factLedger.some(
+        (fact) =>
+          fact.sourceKind === "ir" && fact.factType === "official-financial",
+      )
+    ) {
+      warnings.push(
+        "Quality: IR evidence should not be classified as SEC official-financial facts.",
       );
     }
 
@@ -67,6 +95,7 @@ export function assessBriefQuality(brief: BriefDocument): string[] {
     !context &&
     !brief.evidencePack &&
     !brief.secEvidencePack &&
+    !brief.irEvidencePack &&
     hasUnsupportedLiveDataClaim(brief)
   ) {
     warnings.push(
@@ -221,6 +250,46 @@ function addSecWarnings(brief: BriefDocument, warnings: string[]) {
   }
 }
 
+function addIrWarnings(brief: BriefDocument, warnings: string[]) {
+  const pack = brief.irEvidencePack;
+  if (!pack) return;
+
+  if (pack.irItems.length < 2) {
+    warnings.push("Quality: irEvidencePack should include at least 2 IR sources.");
+  }
+  if (
+    pack.irItems.length &&
+    pack.irItems.every(
+      (item) => item.dateStatus === "retrieved-only" || !item.publishedAt,
+    )
+  ) {
+    warnings.push(
+      "Quality: all IR sources are retrieved-only; published dates were unavailable.",
+    );
+  }
+  if (!sourceNoteMentionsIrProvider(brief)) {
+    warnings.push("Quality: sourceNote should mention irProvider.");
+  }
+  if (!sectionMentionsIr(brief, "company-snapshot")) {
+    warnings.push(
+      "Quality: Company Snapshot should reflect IR management commentary or official company narrative when IR evidence exists.",
+    );
+  }
+  if (!sectionMentionsIr(brief, "value-drivers")) {
+    warnings.push(
+      "Quality: Key Value Drivers should reflect IR product update, management commentary, or company guidance context when IR evidence exists.",
+    );
+  }
+  if (textTreatsIrAsConsensus(brief)) {
+    warnings.push("Quality: IR guidance must be described as company guidance context, not consensus.");
+  }
+  if (textTreatsIrAsOfficialFinancial(brief)) {
+    warnings.push(
+      "Quality: IR numbers should not be written as SEC official-financial facts.",
+    );
+  }
+}
+
 function findSection(brief: BriefDocument, kind: BriefSectionKind) {
   return brief.sections?.find((section) => section.kind === kind);
 }
@@ -248,6 +317,11 @@ function sourceNoteMentionsCik(brief: BriefDocument) {
   return /\bcik\b|sec evidence draft|companyfacts/i.test(text);
 }
 
+function sourceNoteMentionsIrProvider(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  return /irprovider|ir evidence draft|company ir|earnings-release/i.test(text);
+}
+
 function sourceNoteMentionsEvidenceLevel(brief: BriefDocument) {
   const text = sourceNoteText(brief);
   return /evidencelevel|evidence level|search-and-sec|search-only|sec-only/i.test(
@@ -265,6 +339,19 @@ function sourceNoteSaysNoSec(brief: BriefDocument) {
   return /未接入\s*sec|未接\s*sec|no sec|without sec|sec not connected/i.test(
     text,
   );
+}
+
+function sourceNoteSaysNoIr(brief: BriefDocument) {
+  const text = sourceNoteText(brief);
+  const noIrClaim =
+    /no company ir evidence|company ir evidence.*not connected|ir evidence.*not connected|ir not connected/i.test(
+      text,
+    );
+  if (!noIrClaim) return false;
+  if (/full[- ]?text parsing|pdf full[- ]?text|transcript full[- ]?text/i.test(text)) {
+    return false;
+  }
+  return !/ir evidence draft|irprovider|company ir.*attached/i.test(text);
 }
 
 function sourceNoteMentionsMissingMarketBoundaries(brief: BriefDocument) {
@@ -288,6 +375,17 @@ function sectionMentionsEvidence(
   );
 }
 
+function sectionMentionsIr(
+  brief: BriefDocument,
+  kind: BriefSectionKind,
+) {
+  const section = findSection(brief, kind);
+  if (!section) return false;
+  return /ir evidence|company ir|management commentary|company guidance|business update|product update|official company|earnings release|investor relations/i.test(
+    sectionText(section),
+  );
+}
+
 function financialDeepDiveMentionsSecFacts(brief: BriefDocument) {
   const section = findSection(brief, "financial-deep-dive");
   if (!section) return false;
@@ -302,6 +400,31 @@ function hasRevenueIncomeOrEps(brief: BriefDocument) {
     .join(" ");
   return /revenue|revenues|salesrevenuenet|netincome|earningspershare|eps/.test(
     labels,
+  );
+}
+
+function evidenceLevelIncludesIr(level: string | undefined) {
+  return Boolean(level && /\bir\b/i.test(level));
+}
+
+function textTreatsIrAsConsensus(brief: BriefDocument) {
+  const cleaned = getBriefText(brief)
+    .replace(/must not[^.]{0,220}consensus/gi, "")
+    .replace(/not[^.]{0,220}consensus/gi, "")
+    .replace(/no consensus estimates/gi, "");
+
+  return /(ir evidence|company guidance context|company guidance|management commentary)[^.。]{0,80}(consensus|consensus estimate|consensus forecast)/i.test(
+    cleaned,
+  );
+}
+
+function textTreatsIrAsOfficialFinancial(brief: BriefDocument) {
+  const cleaned = getBriefText(brief)
+    .replace(/must not[^.]{0,160}(official[- ]financial|companyfacts)/gi, "")
+    .replace(/not[^.]{0,160}(official[- ]financial|companyfacts)/gi, "");
+
+  return /(ir evidence|company ir|earnings release|management commentary).{0,100}(sec official|official[- ]financial|official financial fact|companyfacts)/i.test(
+    cleaned,
   );
 }
 

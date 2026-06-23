@@ -2,7 +2,7 @@
 
 Moki Alpha Brief is a V0.1 public research brief clone for a buy-side style NVDA memo.
 
-Current status: V0.1 static share page plus Phase 9.1 Search Evidence MVP. It defaults to mock data/provider and keeps the Moki black, white, and gold visual system.
+Current status: V0.1 static share page plus Phase 9.4 Company IR / Earnings Release Evidence MVP. It defaults to evidence-draft / mock-safe behavior and keeps the Moki black, white, and gold visual system.
 
 ## Local Run
 
@@ -32,9 +32,10 @@ npm run build
 - No database
 - No committed LLM API key
 - No real serenity-skill execution
-- No SEC, IR, real-time stock price, or consensus estimate feed
+- No real-time stock price or consensus estimate feed
 - No login or saved user-generated task
 - No saved generated share page
+- No PDF full-text parsing or transcript full-text parsing
 
 The optional DeepSeek provider uses `.env.local` only:
 
@@ -46,7 +47,7 @@ DEEPSEEK_MODEL=deepseek-chat
 
 `/generate` can choose Fast (`deepseek-chat`) or Deep Reasoning (`deepseek-reasoner`). The reasoner mode does not show, save, or pass back `reasoning_content`; it only renders the final structured BriefDocument JSON.
 
-`/generate` can also enable Search Evidence Draft mode. Without `TAVILY_API_KEY`, it falls back to mock search evidence.
+`/generate` can also enable Search, SEC, and Company IR Evidence Draft modes. Without `TAVILY_API_KEY`, search-backed IR falls back to mock IR evidence.
 
 ## Docs
 
@@ -82,6 +83,10 @@ SEC evidence:
 Research evidence context:
 
 - `docs/V0_1_RESEARCH_EVIDENCE_CONTEXT.md`
+
+Company IR evidence:
+
+- `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`
 
 Evidence status copy:
 

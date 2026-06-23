@@ -71,8 +71,20 @@ function selectFactsForPrompt(facts: ResearchEvidenceFact[]) {
         fact.factType === "risk-catalyst",
     )
     .slice(0, 6);
+  const irFacts = facts
+    .filter(
+      (fact) =>
+        fact.factType === "management-commentary" ||
+        fact.factType === "company-guidance-context" ||
+        fact.factType === "business-update",
+    )
+    .slice(0, 8);
   const remainingSlots =
-    18 - officialFinancial.length - filingMetadata.length - recentOrRisk.length;
+    22 -
+    officialFinancial.length -
+    filingMetadata.length -
+    recentOrRisk.length -
+    irFacts.length;
   const marketDiscussion = facts
     .filter((fact) => fact.factType === "market-discussion")
     .slice(0, Math.max(0, remainingSlots));
@@ -81,8 +93,9 @@ function selectFactsForPrompt(facts: ResearchEvidenceFact[]) {
     ...officialFinancial,
     ...filingMetadata,
     ...recentOrRisk,
+    ...irFacts,
     ...marketDiscussion,
-  ].slice(0, 18);
+  ].slice(0, 22);
 }
 
 function truncate(value: string, maxLength: number) {

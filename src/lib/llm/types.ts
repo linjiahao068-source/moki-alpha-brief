@@ -2,6 +2,7 @@ import type { BriefDocument, BriefLanguage } from "@/types/brief";
 import type {
   EvidenceCoverageSummary,
   EvidencePack,
+  IrEvidencePack,
   ResearchEvidenceContext,
   ResearchEvidenceLevel,
   SecEvidencePack,
@@ -18,8 +19,10 @@ export type GenerateBriefInput = {
   model?: string;
   useSearch?: boolean;
   useSec?: boolean;
+  useIr?: boolean;
   evidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  irEvidencePack?: IrEvidencePack;
   researchEvidenceContext?: ResearchEvidenceContext;
 };
 
@@ -42,6 +45,9 @@ export type GenerateBriefResult = {
   secIsFallback?: boolean;
   secWarnings?: string[];
   cik?: string;
+  irProvider?: IrEvidencePack["provider"];
+  irIsFallback?: boolean;
+  irWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;

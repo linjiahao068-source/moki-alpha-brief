@@ -41,9 +41,12 @@ function validateRootFields(brief: BriefDocument, issues: string[]) {
     brief.metadata?.dataMode === "evidence-draft" &&
     !brief.evidencePack &&
     !brief.secEvidencePack &&
+    !brief.irEvidencePack &&
     !brief.researchEvidenceContext
   ) {
-    issues.push("evidence-draft requires evidencePack, secEvidencePack, or researchEvidenceContext");
+    issues.push(
+      "evidence-draft requires evidencePack, secEvidencePack, irEvidencePack, or researchEvidenceContext",
+    );
   }
 }
 
@@ -115,6 +118,18 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     if (!brief.secEvidencePack.cik) issues.push("secEvidencePack.cik is required");
   }
 
+  if (brief.irEvidencePack) {
+    if (brief.irEvidencePack.dataMode !== "evidence-draft") {
+      issues.push("irEvidencePack.dataMode must be evidence-draft");
+    }
+    if (!brief.irEvidencePack.irItems?.length) {
+      issues.push("irEvidencePack.irItems is required");
+    }
+    if (!brief.irEvidencePack.sources?.length) {
+      issues.push("irEvidencePack.sources is required");
+    }
+  }
+
   const context = brief.researchEvidenceContext;
   if (!context) return;
 
@@ -130,6 +145,7 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
   if (!context.coverage) {
     issues.push("researchEvidenceContext.coverage is required");
   }
+
   if (context.evidenceLevel === "search-and-sec") {
     if (!brief.evidencePack && !context.searchEvidencePack) {
       issues.push("search-and-sec evidenceLevel requires search evidence");
@@ -138,33 +154,80 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
       issues.push("search-and-sec evidenceLevel requires SEC evidence");
     }
   }
+
+  if (context.evidenceLevel === "search-sec-and-ir") {
+    if (!brief.evidencePack && !context.searchEvidencePack) {
+      issues.push("search-sec-and-ir evidenceLevel requires search evidence");
+    }
+    if (!brief.secEvidencePack && !context.secEvidencePack) {
+      issues.push("search-sec-and-ir evidenceLevel requires SEC evidence");
+    }
+    if (!brief.irEvidencePack && !context.irEvidencePack) {
+      issues.push("search-sec-and-ir evidenceLevel requires IR evidence");
+    }
+  }
+
+  if (
+    (context.evidenceLevel === "ir-only" ||
+      context.evidenceLevel === "search-and-ir" ||
+      context.evidenceLevel === "sec-and-ir") &&
+    !brief.irEvidencePack &&
+    !context.irEvidencePack
+  ) {
+    issues.push(`${context.evidenceLevel} evidenceLevel requires IR evidence`);
+  }
 }
 
 function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
   const text = getBoundaryText(brief);
   const level = brief.researchEvidenceContext?.evidenceLevel;
+  const hasIrEvidence = evidenceLevelIncludesIr(level) || Boolean(brief.irEvidencePack);
 
   if (/verified-real-data/i.test(text)) {
     issues.push("brief text must not display verified-real-data");
   }
 
   if (
-    (level === "search-and-sec" || level === "sec-only" || brief.secEvidencePack) &&
+    (level === "search-and-sec" ||
+      level === "search-sec-and-ir" ||
+      level === "sec-and-ir" ||
+      level === "sec-only" ||
+      brief.secEvidencePack) &&
     claimsNoSec(text)
   ) {
     issues.push("sourceNote contradicts SEC evidence by saying SEC is not connected");
   }
 
-  if (level === "search-and-sec" && !/search \+ sec evidence draft|search and sec/i.test(text)) {
+  if (
+    level === "search-and-sec" &&
+    !/search \+ sec evidence draft|search and sec evidence draft/i.test(text)
+  ) {
     issues.push("sourceNote must mention Search + SEC Evidence Draft");
   }
 
   if (
+    level === "search-sec-and-ir" &&
+    !/search \+ sec \+ ir evidence draft|search.*sec.*ir evidence draft/i.test(text)
+  ) {
+    issues.push("sourceNote must mention Search + SEC + IR Evidence Draft");
+  }
+
+  if (hasIrEvidence && claimsNoCompanyIr(text)) {
+    issues.push("sourceNote contradicts IR evidence by saying Company IR is not connected");
+  }
+
+  if (hasIrEvidence && treatsIrAsConsensus(text)) {
+    issues.push("brief text must not treat IR evidence or company guidance context as consensus");
+  }
+
+  if (
     brief.metadata?.dataMode === "evidence-draft" &&
-    !mentionsMissingMarketBoundaries(text)
+    !mentionsMissingMarketBoundaries(text, hasIrEvidence)
   ) {
     issues.push(
-      "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
+      hasIrEvidence
+        ? "sourceNote must mention missing real-time price, consensus, database, and manual verification coverage"
+        : "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
     );
   }
 }
@@ -183,17 +246,54 @@ function getBoundaryText(brief: BriefDocument) {
 
 function claimsNoSec(text: string) {
   return (
-    /no sec|without sec|sec.*not connected|not connected.*sec|未接入\s*sec|未接\s*sec|没有接入\s*sec|不接入\s*sec/i.test(
-      text,
-    ) && !/sec evidence draft|sec companyfacts|secprovider|cik/i.test(text)
+    /no sec|without sec|sec.*not connected|not connected.*sec/i.test(text) &&
+    !/sec evidence draft|sec companyfacts|secprovider|cik/i.test(text)
   );
 }
 
-function mentionsMissingMarketBoundaries(text: string) {
-  return (
-    /(real-time price|market price|实时股价|实时行情)/i.test(text) &&
-    /(consensus|一致预期)/i.test(text) &&
-    /(company ir|公司 ir)/i.test(text) &&
-    /(database|数据库)/i.test(text)
+function claimsNoCompanyIr(text: string) {
+  const noIrClaim =
+    /no company ir evidence|company ir evidence.*not connected|ir evidence.*not connected|ir not connected/i.test(
+      text,
+    );
+  if (!noIrClaim) return false;
+  if (/ir evidence draft|irprovider|ir source count|company ir.*attached/i.test(text)) {
+    return false;
+  }
+  if (/pdf full[- ]?text|transcript full[- ]?text|full[- ]?text parsing/i.test(text)) {
+    return false;
+  }
+  return true;
+}
+
+function treatsIrAsConsensus(text: string) {
+  const cleaned = text
+    .replace(/must not[^.]{0,220}consensus/gi, "")
+    .replace(/not[^.]{0,220}consensus/gi, "")
+    .replace(/no consensus estimates/gi, "");
+
+  return /(ir evidence|company guidance context|company guidance|management commentary)[^.。]{0,80}(consensus|consensus estimate|consensus forecast)/i.test(
+    cleaned,
   );
+}
+
+function mentionsMissingMarketBoundaries(text: string, hasIrEvidence: boolean) {
+  const hasCoreMissing =
+    /(real-time price|market price|real-time market price)/i.test(text) &&
+    /(consensus|consensus estimates)/i.test(text) &&
+    /(database|database save)/i.test(text);
+
+  if (!hasCoreMissing) return false;
+
+  if (hasIrEvidence) {
+    return /(manual verification|pdf full[- ]?text|transcript full[- ]?text)/i.test(
+      text,
+    );
+  }
+
+  return /(company ir|ir evidence|company ir evidence)/i.test(text);
+}
+
+function evidenceLevelIncludesIr(level: string | undefined) {
+  return Boolean(level && /\bir\b/i.test(level));
 }

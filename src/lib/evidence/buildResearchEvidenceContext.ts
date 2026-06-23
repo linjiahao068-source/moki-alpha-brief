@@ -1,5 +1,6 @@
 import type {
   EvidencePack,
+  IrEvidencePack,
   ResearchEvidenceContext,
   ResearchEvidenceFact,
   ResearchEvidenceLevel,
@@ -15,31 +16,41 @@ export function buildResearchEvidenceContext({
   companyName,
   searchEvidencePack,
   secEvidencePack,
+  irEvidencePack,
 }: {
   ticker: string;
   companyName?: string;
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  irEvidencePack?: IrEvidencePack;
 }): ResearchEvidenceContext | undefined {
   const hasSearchEvidence = Boolean(searchEvidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
+  const hasIrEvidence = Boolean(irEvidencePack);
 
-  if (!hasSearchEvidence && !hasSecEvidence) return undefined;
+  if (!hasSearchEvidence && !hasSecEvidence && !hasIrEvidence) return undefined;
 
   const sourceRegistry = buildSourceRegistry({
     searchEvidencePack,
     secEvidencePack,
+    irEvidencePack,
   });
-  const factLedger = buildFactLedger({ searchEvidencePack, secEvidencePack });
+  const factLedger = buildFactLedger({
+    searchEvidencePack,
+    secEvidencePack,
+    irEvidencePack,
+  });
   const linkedSources = linkFactsToSources(sourceRegistry, factLedger);
   const coverage = buildEvidenceCoverage({
     searchEvidencePack,
     secEvidencePack,
+    irEvidencePack,
     factLedger,
   });
   const warnings = [
     ...(searchEvidencePack?.warnings || []),
     ...(secEvidencePack?.warnings || []),
+    ...(irEvidencePack?.warnings || []),
     ...coverage.warnings,
   ];
 
@@ -47,17 +58,24 @@ export function buildResearchEvidenceContext({
     asOf: latestTimestamp([
       searchEvidencePack?.asOf,
       secEvidencePack?.asOf,
+      irEvidencePack?.asOf,
       formatCstTimestamp(),
     ]),
     ticker: ticker.trim().toUpperCase(),
     companyName:
       companyName?.trim() ||
       secEvidencePack?.companyName ||
-      searchEvidencePack?.companyName,
+      searchEvidencePack?.companyName ||
+      irEvidencePack?.companyName,
     dataMode: "evidence-draft",
-    evidenceLevel: getEvidenceLevel(hasSearchEvidence, hasSecEvidence),
+    evidenceLevel: getEvidenceLevel(
+      hasSearchEvidence,
+      hasSecEvidence,
+      hasIrEvidence,
+    ),
     searchEvidencePack,
     secEvidencePack,
+    irEvidencePack,
     sourceRegistry: linkedSources,
     factLedger,
     coverage,
@@ -68,10 +86,17 @@ export function buildResearchEvidenceContext({
 function getEvidenceLevel(
   hasSearchEvidence: boolean,
   hasSecEvidence: boolean,
+  hasIrEvidence: boolean,
 ): ResearchEvidenceLevel {
+  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
+    return "search-sec-and-ir";
+  }
   if (hasSearchEvidence && hasSecEvidence) return "search-and-sec";
+  if (hasSearchEvidence && hasIrEvidence) return "search-and-ir";
+  if (hasSecEvidence && hasIrEvidence) return "sec-and-ir";
   if (hasSearchEvidence) return "search-only";
   if (hasSecEvidence) return "sec-only";
+  if (hasIrEvidence) return "ir-only";
   return "none";
 }
 

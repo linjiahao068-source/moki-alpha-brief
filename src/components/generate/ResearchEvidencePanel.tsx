@@ -23,8 +23,10 @@ export function ResearchEvidencePanel({
     evidenceLevel: context.evidenceLevel,
     hasSearchEvidence: context.coverage.hasSearchEvidence,
     hasSecEvidence: context.coverage.hasSecEvidence,
+    hasIrEvidence: context.coverage.hasCompanyIr,
     searchProvider: context.searchEvidencePack?.searchProvider,
     secProvider: context.secEvidencePack?.provider,
+    irProvider: context.irEvidencePack?.provider,
   });
   const combinedWarnings = Array.from(
     new Set([...(context.warnings || []), ...warnings].filter(Boolean)),
@@ -54,12 +56,15 @@ export function ResearchEvidencePanel({
       <div className="mt-4 grid gap-3 text-sm leading-6 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Search" value={context.coverage.hasSearchEvidence ? "yes" : "no"} />
         <Stat label="SEC" value={context.coverage.hasSecEvidence ? "yes" : "no"} />
+        <Stat label="Company IR" value={context.coverage.hasCompanyIr ? "yes" : "no"} />
+        <Stat label="Earnings Release" value={context.coverage.hasEarningsRelease ? "yes" : "no"} />
         <Stat label="Market Price" value="missing" />
         <Stat label="Consensus" value="missing" />
-        <Stat label="Company IR" value="missing" />
         <Stat label="Revenue Fact" value={context.coverage.hasRevenueFact ? "yes" : "no"} />
         <Stat label="Net Income Fact" value={context.coverage.hasNetIncomeFact ? "yes" : "no"} />
         <Stat label="EPS Fact" value={context.coverage.hasEpsFact ? "yes" : "no"} />
+        <Stat label="Guidance Context" value={context.coverage.hasGuidanceContext ? "yes" : "no"} />
+        <Stat label="Management Commentary" value={context.coverage.hasManagementCommentary ? "yes" : "no"} />
       </div>
 
       {context.coverage.missing.length ? (
@@ -77,8 +82,9 @@ export function ResearchEvidencePanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <SummaryBlock title="Source Registry Summary">
-          <SummaryRow label="Search sources" value={String(countSourceKind(context, "search") + countSourceKind(context, "mock"))} />
-          <SummaryRow label="SEC sources" value={String(countSourceKind(context, "sec"))} />
+          <SummaryRow label="Search sources" value={String(context.searchEvidencePack?.sources.length || 0)} />
+          <SummaryRow label="SEC sources" value={String(context.secEvidencePack?.sources.length || 0)} />
+          <SummaryRow label="IR sources" value={String(context.irEvidencePack?.sources.length || 0)} />
           <SummaryRow label="High / Medium / Low" value={`${confidence.high} / ${confidence.medium} / ${confidence.low}`} />
         </SummaryBlock>
 
@@ -87,6 +93,9 @@ export function ResearchEvidencePanel({
           <SummaryRow label="Filing metadata" value={String(factCounts["filing-metadata"] || 0)} />
           <SummaryRow label="Recent development" value={String(factCounts["recent-development"] || 0)} />
           <SummaryRow label="Risk catalyst" value={String(factCounts["risk-catalyst"] || 0)} />
+          <SummaryRow label="Management commentary" value={String(factCounts["management-commentary"] || 0)} />
+          <SummaryRow label="Company guidance context" value={String(factCounts["company-guidance-context"] || 0)} />
+          <SummaryRow label="Business update" value={String(factCounts["business-update"] || 0)} />
         </SummaryBlock>
       </div>
 
@@ -175,14 +184,6 @@ function countConfidence(context: ResearchEvidenceContext) {
     },
     { high: 0, medium: 0, low: 0 } as Record<EvidenceConfidence, number>,
   );
-}
-
-function countSourceKind(
-  context: ResearchEvidenceContext,
-  kind: "search" | "sec" | "mock",
-) {
-  return context.sourceRegistry.filter((source) => source.sourceKind === kind)
-    .length;
 }
 
 function countFactTypes(context: ResearchEvidenceContext) {

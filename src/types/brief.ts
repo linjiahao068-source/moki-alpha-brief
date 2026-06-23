@@ -1,6 +1,7 @@
 import type {
   EvidenceCoverageSummary,
   EvidencePack,
+  IrEvidencePack,
   ResearchEvidenceContext,
   SecEvidencePack,
 } from "./evidence";
@@ -195,6 +196,7 @@ export type BriefDocument = {
   monitoringDashboard: MonitoringDashboardBlock;
   evidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
+  irEvidencePack?: IrEvidencePack;
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceSummary?: EvidenceCoverageSummary;
   sourceNote: SourceNoteData;

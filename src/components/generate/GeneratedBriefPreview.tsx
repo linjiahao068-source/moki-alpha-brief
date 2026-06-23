@@ -22,8 +22,10 @@ export function GeneratedBriefPreview({
     evidenceLevel: brief.researchEvidenceContext?.evidenceLevel,
     hasSearchEvidence: Boolean(brief.evidencePack),
     hasSecEvidence: Boolean(brief.secEvidencePack),
+    hasIrEvidence: Boolean(brief.irEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
+    irProvider: brief.irEvidencePack?.provider,
   });
   const statusMessage = getGenerationMetaMessage(brief, generationMeta);
   const repairLabel = getRepairLabel(generationMeta);
@@ -72,8 +74,10 @@ function getGenerationMetaMessage(
     evidenceLevel: level,
     hasSearchEvidence: Boolean(brief.evidencePack),
     hasSecEvidence: Boolean(brief.secEvidencePack),
+    hasIrEvidence: Boolean(brief.irEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
+    irProvider: brief.irEvidencePack?.provider,
   });
 
   if (meta?.provider === "mock" && meta.isFallback && level) {

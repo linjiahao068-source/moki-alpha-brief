@@ -562,3 +562,30 @@ The copy now distinguishes:
 - `search-and-sec`: Search + SEC Evidence Draft.
 
 `dataMode` remains `evidence-draft`; real-time market price, consensus estimates, company IR narrative parsing, database save, and manual verification remain out of scope.
+
+### Phase 9.4: Company IR / Earnings Release Evidence MVP
+
+Status: completed in this iteration.
+
+Added Company IR / earnings-release evidence support:
+
+- `IrEvidencePack` and `IrEvidenceItem` types.
+- `src/lib/ir/*` provider layer with `mock` and `search` modes.
+- `IR_PROVIDER=search` reuses existing Tavily/search capability and does not add a new API key.
+- `POST /api/ir-evidence`.
+- `POST /api/generate-brief` supports `useIr=true`.
+- `ResearchEvidenceContext` can combine Search + SEC + IR evidence.
+- New evidence levels: `ir-only`, `search-and-ir`, `sec-and-ir`, `search-sec-and-ir`.
+- Coverage now includes Company IR, earnings release, management commentary, and guidance context flags.
+- `/generate` adds `Use Company IR / earnings release` and `IrEvidencePanel`.
+- Prompt rules distinguish Search, SEC, and IR evidence roles.
+
+Important boundaries:
+
+- IR evidence is company official narrative / management commentary / business-update context only.
+- IR evidence must not become SEC official-financial facts.
+- IR guidance must be called company guidance context, not consensus.
+- The project still does not connect real-time market price, consensus estimates, database persistence, saved share links, PDF full-text parsing, transcript full-text parsing, or manual verification.
+- `dataMode` remains `evidence-draft`; `verified-real-data` remains forbidden.
+
+Full handoff: `docs/V0_1_COMPANY_IR_EVIDENCE_MVP.md`.

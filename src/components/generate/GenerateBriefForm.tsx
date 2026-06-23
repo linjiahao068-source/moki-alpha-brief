@@ -11,6 +11,7 @@ import type {
   ResearchEvidenceLevel,
 } from "@/types/evidence";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
+import { IrEvidencePanel } from "./IrEvidencePanel";
 import { ResearchEvidencePanel } from "./ResearchEvidencePanel";
 import { SecEvidencePanel } from "./SecEvidencePanel";
 import { SourceEvidenceList } from "./SourceEvidenceList";
@@ -32,6 +33,9 @@ type GenerateApiResult = {
   secIsFallback?: boolean;
   secWarnings?: string[];
   cik?: string;
+  irProvider?: "mock" | "search";
+  irIsFallback?: boolean;
+  irWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;
@@ -46,6 +50,7 @@ export function GenerateBriefForm() {
   const [modelMode, setModelMode] = useState<DeepSeekModelMode>("chat");
   const [useSearch, setUseSearch] = useState(false);
   const [useSec, setUseSec] = useState(false);
+  const [useIr, setUseIr] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,10 +68,12 @@ export function GenerateBriefForm() {
         evidenceLevel,
         hasSearchEvidence: Boolean(result?.brief?.evidencePack),
         hasSecEvidence: Boolean(result?.brief?.secEvidencePack),
+        hasIrEvidence: Boolean(result?.brief?.irEvidencePack),
         searchProvider:
           result?.searchProvider || result?.brief?.evidencePack?.searchProvider,
         secProvider:
           result?.secProvider || result?.brief?.secEvidencePack?.provider,
+        irProvider: result?.irProvider || result?.brief?.irEvidencePack?.provider,
       }),
     [evidenceLevel, result],
   );
@@ -86,11 +93,16 @@ export function GenerateBriefForm() {
     () => (result?.secWarnings || []).filter(Boolean),
     [result],
   );
+  const irWarningList = useMemo(
+    () => (result?.irWarnings || []).filter(Boolean),
+    [result],
+  );
   const evidenceStats = useMemo(
     () => getEvidenceStats(result?.brief),
     [result],
   );
   const secStats = useMemo(() => getSecStats(result?.brief), [result]);
+  const irStats = useMemo(() => getIrStats(result?.brief), [result]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,6 +121,7 @@ export function GenerateBriefForm() {
           modelMode,
           useSearch,
           useSec,
+          useIr,
         }),
       });
       const payload = (await response.json()) as GenerateApiResult;
@@ -191,9 +204,18 @@ export function GenerateBriefForm() {
           label="Use SEC official data"
           onChange={setUseSec}
         />
+        <EvidenceToggle
+          checked={useIr}
+          description="Use Company IR / earnings-release search evidence for official company narrative and management commentary."
+          label="Use Company IR / earnings release"
+          onChange={setUseIr}
+        />
 
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
-          当前为 LLM Demo / Evidence Draft。可选择搜索证据和 SEC official data；仍未接入实时股价、一致预期、公司 IR 正文解析或数据库，不构成投资建议。
+          Current mode is LLM Demo / Evidence Draft. Optional Search, SEC,
+          and Company IR evidence remain draft inputs; real-time market price,
+          consensus estimates, database save, PDF full-text parsing, transcript
+          full-text parsing, and manual verification are still out of scope.
         </div>
 
         <button
@@ -232,6 +254,10 @@ export function GenerateBriefForm() {
             <StatusItem label="CIK" value={result.cik || result.brief?.secEvidencePack?.cik || "n/a"} mono />
             <StatusItem label="Recent Filings" value={String(secStats.recentFilings)} mono />
             <StatusItem label="Fiscal Facts" value={String(secStats.fiscalFacts)} mono />
+            <StatusItem label="IR Provider" value={result.irProvider || "n/a"} mono />
+            <StatusItem label="IR Sources" value={String(irStats.total)} mono />
+            <StatusItem label="Company IR Coverage" value={coverage?.hasCompanyIr ? "yes" : "no"} mono />
+            <StatusItem label="Earnings / Guidance" value={getIrCoverageLabel(coverage)} mono />
           </div>
 
           <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
@@ -258,6 +284,7 @@ export function GenerateBriefForm() {
           <IssuePanel title="Quality Warnings" items={qualityWarningList} brand />
           <IssuePanel title="Search Warnings" items={searchWarningList} />
           <IssuePanel title="SEC Warnings" items={secWarningList} />
+          <IssuePanel title="IR Warnings" items={irWarningList} />
         </section>
       ) : null}
 
@@ -284,6 +311,13 @@ export function GenerateBriefForm() {
         <SecEvidencePanel
           secEvidencePack={result.brief.secEvidencePack}
           warnings={secWarningList}
+        />
+      ) : null}
+
+      {result?.brief?.irEvidencePack ? (
+        <IrEvidencePanel
+          irEvidencePack={result.brief.irEvidencePack}
+          warnings={irWarningList}
         />
       ) : null}
 
@@ -459,6 +493,13 @@ function getSecStats(brief?: BriefDocument) {
   };
 }
 
+function getIrStats(brief?: BriefDocument) {
+  return {
+    total: brief?.irEvidencePack?.irItems.length || 0,
+    warningCount: brief?.irEvidencePack?.warnings?.length || 0,
+  };
+}
+
 function getGenerationStatusMessage(
   result: GenerateApiResult,
   fallbackCopy: string,
@@ -488,9 +529,9 @@ function getCoverageLabel(coverage?: EvidenceCoverageSummary) {
   return [
     coverage.hasSearchEvidence ? "Search" : "Search missing",
     coverage.hasSecEvidence ? "SEC" : "SEC missing",
+    coverage.hasCompanyIr ? "IR" : "IR missing",
     "Market Price missing",
     "Consensus missing",
-    "IR missing",
   ].join(" / ");
 }
 
@@ -499,4 +540,11 @@ function getFactCoverageLabel(coverage?: EvidenceCoverageSummary) {
   return `${coverage.hasRevenueFact ? "yes" : "no"} / ${
     coverage.hasNetIncomeFact ? "yes" : "no"
   } / ${coverage.hasEpsFact ? "yes" : "no"}`;
+}
+
+function getIrCoverageLabel(coverage?: EvidenceCoverageSummary) {
+  if (!coverage) return "n/a";
+  return `${coverage.hasEarningsRelease ? "earnings yes" : "earnings no"} / ${
+    coverage.hasGuidanceContext ? "guidance yes" : "guidance no"
+  }`;
 }

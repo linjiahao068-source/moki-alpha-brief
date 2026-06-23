@@ -222,19 +222,27 @@ function normalizeDeepSeekBrief(
   const now = formatCstTimestamp();
   const evidencePack = input.evidencePack;
   const secEvidencePack = input.secEvidencePack;
+  const irEvidencePack = input.irEvidencePack;
   const researchEvidenceContext = input.researchEvidenceContext;
   const hasSearchEvidence = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
-  const hasAnyEvidence = Boolean(researchEvidenceContext) || hasSearchEvidence || hasSecEvidence;
+  const hasIrEvidence = Boolean(irEvidencePack);
+  const hasAnyEvidence =
+    Boolean(researchEvidenceContext) ||
+    hasSearchEvidence ||
+    hasSecEvidence ||
+    hasIrEvidence;
   const evidenceLabel = getEvidenceLabel(
     hasSearchEvidence,
     hasSecEvidence,
+    hasIrEvidence,
     researchEvidenceContext?.evidenceLevel,
   );
   const companyName =
     input.companyName?.trim() ||
     brief.metadata?.companyName ||
     secEvidencePack?.companyName ||
+    irEvidencePack?.companyName ||
     `${ticker} Demo Company`;
 
   brief.schemaVersion = "0.1";
@@ -283,6 +291,7 @@ function normalizeDeepSeekBrief(
       buildEvidenceSourceNote({
         evidencePack,
         secEvidencePack,
+        irEvidencePack,
         researchEvidenceContext,
         now,
       }),
@@ -297,6 +306,7 @@ function normalizeDeepSeekBrief(
   };
   brief.evidencePack = evidencePack;
   brief.secEvidencePack = secEvidencePack;
+  brief.irEvidencePack = irEvidencePack;
   brief.researchEvidenceContext = researchEvidenceContext;
   brief.evidenceSummary = researchEvidenceContext?.coverage;
 
@@ -353,14 +363,27 @@ function isRenderableBrief(brief: BriefDocument) {
 function getEvidenceLabel(
   hasSearchEvidence: boolean,
   hasSecEvidence: boolean,
+  hasIrEvidence: boolean,
   evidenceLevel?: string,
 ) {
+  if (evidenceLevel === "search-sec-and-ir") {
+    return "Search + SEC + IR Evidence Draft";
+  }
   if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
+  if (evidenceLevel === "search-and-ir") return "Search + IR Evidence Draft";
+  if (evidenceLevel === "sec-and-ir") return "SEC + IR Evidence Draft";
   if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
   if (evidenceLevel === "search-only") return "Search Evidence Draft";
+  if (evidenceLevel === "ir-only") return "IR Evidence Draft";
+  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
+    return "Search + SEC + IR Evidence Draft";
+  }
   if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
+  if (hasSearchEvidence && hasIrEvidence) return "Search + IR Evidence Draft";
+  if (hasSecEvidence && hasIrEvidence) return "SEC + IR Evidence Draft";
   if (hasSecEvidence) return "SEC Evidence Draft";
   if (hasSearchEvidence) return "Search Evidence Draft";
+  if (hasIrEvidence) return "IR Evidence Draft";
   return "LLM Demo / No Live Data";
 }
 
@@ -371,7 +394,7 @@ function ensureDataBadge(
 ): BriefDocument["hero"]["badges"] {
   const next = Array.isArray(badges) ? [...badges] : [];
   const hasDataBadge = next.some((badge) =>
-    /demo|mock|no live data|sample|search evidence|sec evidence/i.test(
+    /demo|mock|no live data|sample|search evidence|sec evidence|ir evidence/i.test(
       badge.label,
     ),
   );
@@ -393,17 +416,25 @@ function ensureDataBadge(
 function buildEvidenceSourceNote({
   evidencePack,
   secEvidencePack,
+  irEvidencePack,
   researchEvidenceContext,
   now,
 }: {
   evidencePack: GenerateBriefInput["evidencePack"];
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
+  irEvidencePack: GenerateBriefInput["irEvidencePack"];
   researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const notes: string[] = [];
 
   if (researchEvidenceContext) {
+    if (researchEvidenceContext.evidenceLevel === "search-sec-and-ir") {
+      notes.push(
+        "Search + SEC + IR Evidence Draft: Tavily/search evidence, SEC companyfacts / submissions, and Company IR / earnings-release evidence are attached.",
+      );
+    }
+
     if (researchEvidenceContext.evidenceLevel === "search-and-sec") {
       notes.push("Search + SEC Evidence Draft: Tavily/search evidence and SEC companyfacts / submissions are attached.");
     }
@@ -425,13 +456,23 @@ function buildEvidenceSourceNote({
     );
   }
 
+  if (irEvidencePack) {
+    notes.push(
+      `IR Evidence Draft: irProvider=${irEvidencePack.provider}; sourceCount=${irEvidencePack.irItems.length}; asOf=${irEvidencePack.asOf || now}. IR evidence is used only for company official narrative, management commentary, business updates, and company guidance context.`,
+    );
+  } else if (notes.length) {
+    notes.push("Company IR / earnings-release evidence is not connected.");
+  }
+
   if (!notes.length) {
     notes.push(
       "LLM Demo / No Live Data: 当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
     );
   }
 
-  notes.push("当前未接入实时股价、一致预期、公司 IR 正文解析或数据库保存，不能标记为验证级真实数据。");
+  notes.push(
+    "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts, consensus, or real-time market data.",
+  );
 
   return notes.join(" ");
 }
