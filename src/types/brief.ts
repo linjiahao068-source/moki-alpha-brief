@@ -1,5 +1,6 @@
 import type {
   EvidenceCoverageSummary,
+  ConsensusEvidencePack,
   EvidencePack,
   IrEvidencePack,
   MarketEvidencePack,
@@ -199,6 +200,7 @@ export type BriefDocument = {
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceSummary?: EvidenceCoverageSummary;
   sourceNote: SourceNoteData;

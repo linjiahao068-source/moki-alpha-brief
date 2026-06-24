@@ -53,6 +53,16 @@ export function GeneratedBriefPreview({
               JSON Repair: {repairLabel}
             </span>
           ) : null}
+          {brief.marketEvidencePack ? (
+            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
+              Market: {brief.marketEvidencePack.provider}
+            </span>
+          ) : null}
+          {brief.marketEvidencePack?.providerChain?.length ? (
+            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
+              Market Chain: {brief.marketEvidencePack.providerChain.join(" -> ")}
+            </span>
+          ) : null}
         </div>
         {statusMessage ? (
           <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm leading-6 text-[var(--foreground)] opacity-85">

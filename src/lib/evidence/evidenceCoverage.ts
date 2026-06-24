@@ -1,4 +1,5 @@
 import type {
+  ConsensusEvidencePack,
   EvidenceCoverageSummary,
   EvidencePack,
   IrEvidencePack,
@@ -12,12 +13,14 @@ export function buildEvidenceCoverage({
   secEvidencePack,
   irEvidencePack,
   marketEvidencePack,
+  consensusEvidencePack,
   factLedger,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
   factLedger: ResearchEvidenceFact[];
 }): EvidenceCoverageSummary {
   const hasSearchEvidence = Boolean(searchEvidencePack?.newsItems?.length);
@@ -48,7 +51,21 @@ export function buildEvidenceCoverage({
   const hasMarketVolume = Boolean(marketEvidencePack?.quote?.volume !== undefined);
   const hasMarketPriceHistory = Boolean(marketEvidencePack?.priceHistory?.length);
   const hasMarketCap = Boolean(marketEvidencePack?.quote?.marketCap !== undefined);
-  const missing = ["consensus estimates"];
+  const hasConsensus = Boolean(consensusEvidencePack);
+  const hasRevenueConsensus = Boolean(
+    consensusEvidencePack?.estimates.some(
+      (estimate) => estimate.revenueAvg !== undefined,
+    ),
+  );
+  const hasEpsConsensus = Boolean(
+    consensusEvidencePack?.estimates.some((estimate) => estimate.epsAvg !== undefined),
+  );
+  const hasAnalystCount = Boolean(
+    consensusEvidencePack?.estimates.some(
+      (estimate) => estimate.analystCount !== undefined,
+    ),
+  );
+  const missing = hasConsensus ? [] : ["consensus estimates"];
   const warnings: string[] = [];
 
   if (!hasMarketPrice) missing.unshift("real-time market price");
@@ -60,6 +77,21 @@ export function buildEvidenceCoverage({
   }
   if (marketEvidencePack && !hasMarketPriceHistory) {
     warnings.push("Market evidence has no recent daily price history.");
+  }
+  if (consensusEvidencePack && !consensusEvidencePack.estimates.length) {
+    missing.push("consensus estimate rows");
+    warnings.push("Consensus evidence has no estimate rows.");
+  }
+  if (consensusEvidencePack && !hasRevenueConsensus) {
+    missing.push("revenue consensus");
+    warnings.push("Consensus evidence has no revenue average field.");
+  }
+  if (consensusEvidencePack && !hasEpsConsensus) {
+    missing.push("EPS consensus");
+    warnings.push("Consensus evidence has no EPS average field.");
+  }
+  if (consensusEvidencePack && !hasAnalystCount) {
+    warnings.push("Consensus evidence has no analystCount field; display N/A.");
   }
   if (
     marketEvidencePack?.quote &&
@@ -112,7 +144,10 @@ export function buildEvidenceCoverage({
     hasMarketVolume,
     hasMarketPriceHistory,
     hasMarketCap,
-    hasConsensus: false,
+    hasConsensus,
+    hasRevenueConsensus,
+    hasEpsConsensus,
+    hasAnalystCount,
     hasCompanyIr,
     hasEarningsRelease,
     hasManagementCommentary,

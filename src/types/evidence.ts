@@ -16,23 +16,41 @@ export type MarketProviderName =
 
 export type MarketEvidenceProviderName = Exclude<MarketProviderName, "auto-free">;
 
+export type ConsensusProviderName = "mock" | "fmp" | "finnhub";
+
 export type ResearchEvidenceLevel =
   | "none"
   | "search-only"
   | "sec-only"
   | "ir-only"
   | "market-only"
+  | "consensus-only"
   | "search-and-sec"
   | "search-and-ir"
   | "search-and-market"
+  | "search-and-consensus"
   | "sec-and-ir"
   | "sec-and-market"
+  | "sec-and-consensus"
   | "ir-and-market"
+  | "ir-and-consensus"
+  | "market-and-consensus"
   | "search-sec-and-ir"
   | "search-sec-and-market"
+  | "search-sec-and-consensus"
   | "search-ir-and-market"
+  | "search-ir-and-consensus"
+  | "search-market-and-consensus"
   | "sec-ir-and-market"
-  | "search-sec-ir-and-market";
+  | "sec-ir-and-consensus"
+  | "sec-market-and-consensus"
+  | "ir-market-and-consensus"
+  | "search-sec-ir-and-market"
+  | "search-sec-ir-and-consensus"
+  | "search-sec-market-and-consensus"
+  | "search-ir-market-and-consensus"
+  | "sec-ir-market-and-consensus"
+  | "search-sec-ir-market-and-consensus";
 
 export type EvidenceQueryPurpose =
   | "recent-news"
@@ -278,6 +296,45 @@ export type MarketEvidencePack = {
   warnings?: string[];
 };
 
+export type ConsensusAllowedUse =
+  | "consensus-context"
+  | "expectation-gap"
+  | "guidance-comparison"
+  | "context-only";
+
+export type ConsensusEstimate = {
+  id: string;
+  fiscalPeriod?: string;
+  fiscalYear?: number;
+  periodEnd?: string;
+  estimateDate?: string;
+  revenueAvg?: number;
+  revenueLow?: number;
+  revenueHigh?: number;
+  epsAvg?: number;
+  epsLow?: number;
+  epsHigh?: number;
+  analystCount?: number;
+  currency?: string;
+  sourceProvider: ConsensusProviderName;
+  confidence: "medium";
+  allowedUse: ConsensusAllowedUse;
+};
+
+export type ConsensusEvidencePack = {
+  asOf: string;
+  ticker: string;
+  companyName?: string;
+  provider: ConsensusProviderName;
+  dataMode: "evidence-draft";
+  period: "quarter" | "annual";
+  estimates: ConsensusEstimate[];
+  sources: EvidenceSource[];
+  warnings?: string[];
+  isFallback?: boolean;
+  providerChain?: ConsensusProviderName[];
+};
+
 export type EvidencePack = {
   asOf: string;
   ticker: string;
@@ -296,7 +353,14 @@ export type EvidencePack = {
 
 export type ResearchEvidenceSource = {
   id: string;
-  sourceKind: "search" | "sec" | "ir" | "market" | "manual" | "mock";
+  sourceKind:
+    | "search"
+    | "sec"
+    | "ir"
+    | "market"
+    | "consensus"
+    | "manual"
+    | "mock";
   sourceType:
     | "news"
     | "company-ir"
@@ -313,6 +377,7 @@ export type ResearchEvidenceSource = {
     | "sec-companyfacts"
     | "market-commentary"
     | "market-data"
+    | "consensus"
     | "manual";
   title: string;
   url?: string;
@@ -339,9 +404,13 @@ export type ResearchEvidenceFact = {
     | "market-volume"
     | "market-price-history"
     | "market-valuation-context"
+    | "consensus-revenue"
+    | "consensus-eps"
+    | "consensus-range"
+    | "analyst-count"
     | "market-discussion"
     | "llm-analysis-placeholder";
-  sourceKind: "sec" | "search" | "ir" | "market" | "mock";
+  sourceKind: "sec" | "search" | "ir" | "market" | "consensus" | "mock";
   sourceId: string;
   label: string;
   value?: string | number;
@@ -361,6 +430,9 @@ export type ResearchEvidenceFact = {
     | "market-context"
     | "valuation-context"
     | "monitoring-dashboard"
+    | "consensus-context"
+    | "expectation-gap"
+    | "guidance-comparison"
     | "context-only"
     | "not-for-facts";
   note?: string;
@@ -378,7 +450,10 @@ export type EvidenceCoverageSummary = {
   hasMarketVolume: boolean;
   hasMarketPriceHistory: boolean;
   hasMarketCap: boolean;
-  hasConsensus: false;
+  hasConsensus: boolean;
+  hasRevenueConsensus: boolean;
+  hasEpsConsensus: boolean;
+  hasAnalystCount: boolean;
   hasCompanyIr: boolean;
   hasEarningsRelease: boolean;
   hasManagementCommentary: boolean;
@@ -397,6 +472,7 @@ export type ResearchEvidenceContext = {
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
   sourceRegistry: ResearchEvidenceSource[];
   factLedger: ResearchEvidenceFact[];
   coverage: EvidenceCoverageSummary;

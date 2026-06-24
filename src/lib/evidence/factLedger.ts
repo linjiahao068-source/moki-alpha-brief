@@ -1,4 +1,6 @@
 import type {
+  ConsensusEstimate,
+  ConsensusEvidencePack,
   EvidenceNewsItem,
   EvidencePack,
   IrEvidenceItem,
@@ -13,6 +15,7 @@ import type {
 import {
   getIrSourceId,
   getMarketSourceId,
+  getConsensusSourceId,
   getSearchSourceId,
   getSecSourceId,
 } from "./sourceRegistry";
@@ -22,11 +25,13 @@ export function buildFactLedger({
   secEvidencePack,
   irEvidencePack,
   marketEvidencePack,
+  consensusEvidencePack,
 }: {
   searchEvidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
 }): ResearchEvidenceFact[] {
   return [
     ...buildSecFinancialFacts(secEvidencePack),
@@ -34,6 +39,7 @@ export function buildFactLedger({
     ...buildSearchFacts(searchEvidencePack),
     ...buildIrFacts(irEvidencePack),
     ...buildMarketFacts(marketEvidencePack),
+    ...buildConsensusFacts(consensusEvidencePack),
   ];
 }
 
@@ -296,6 +302,114 @@ function summarizeHistory(points: MarketPricePoint[]) {
   const last = cleaned[cleaned.length - 1];
 
   return `${cleaned.length} daily points; first=${first.date} close=${first.close}; last=${last.date} close=${last.close}`;
+}
+
+function buildConsensusFacts(consensusEvidencePack?: ConsensusEvidencePack) {
+  if (!consensusEvidencePack?.estimates.length) return [];
+
+  const sourceId = getConsensusSourceId(
+    consensusEvidencePack.sources[0]?.id || "consensus-estimates",
+  );
+
+  return consensusEvidencePack.estimates.flatMap((estimate, index) =>
+    consensusEstimateToLedgerFacts({
+      estimate,
+      index,
+      sourceId,
+      ticker: consensusEvidencePack.ticker,
+    }),
+  );
+}
+
+function consensusEstimateToLedgerFacts({
+  estimate,
+  index,
+  sourceId,
+  ticker,
+}: {
+  estimate: ConsensusEstimate;
+  index: number;
+  sourceId: string;
+  ticker: string;
+}) {
+  const facts: ResearchEvidenceFact[] = [];
+  const period = estimate.fiscalPeriod || estimate.periodEnd || estimate.estimateDate;
+  const sourceKind = "consensus" as const;
+  const baseNote =
+    "Analyst consensus evidence draft. Use only as revenue / EPS estimate context. It is not SEC actual data, market price data, verified-real-data, a formal rating, or a formal target price.";
+
+  if (estimate.revenueAvg !== undefined) {
+    facts.push({
+      id: `consensus-revenue-${index + 1}`,
+      factType: "consensus-revenue",
+      sourceKind,
+      sourceId,
+      label: `${ticker} revenue consensus estimate`,
+      value: estimate.revenueAvg,
+      unit: estimate.currency,
+      period,
+      confidence: "medium",
+      allowedUse: "expectation-gap",
+      note: baseNote,
+    });
+  }
+
+  if (estimate.epsAvg !== undefined) {
+    facts.push({
+      id: `consensus-eps-${index + 1}`,
+      factType: "consensus-eps",
+      sourceKind,
+      sourceId,
+      label: `${ticker} EPS consensus estimate`,
+      value: estimate.epsAvg,
+      unit: estimate.currency,
+      period,
+      confidence: "medium",
+      allowedUse: "expectation-gap",
+      note: baseNote,
+    });
+  }
+
+  const rangeParts = [
+    estimate.revenueLow !== undefined ? `revenueLow=${estimate.revenueLow}` : "",
+    estimate.revenueHigh !== undefined ? `revenueHigh=${estimate.revenueHigh}` : "",
+    estimate.epsLow !== undefined ? `epsLow=${estimate.epsLow}` : "",
+    estimate.epsHigh !== undefined ? `epsHigh=${estimate.epsHigh}` : "",
+  ].filter(Boolean);
+
+  if (rangeParts.length) {
+    facts.push({
+      id: `consensus-range-${index + 1}`,
+      factType: "consensus-range",
+      sourceKind,
+      sourceId,
+      label: `${ticker} consensus estimate range`,
+      value: rangeParts.join("; "),
+      unit: estimate.currency,
+      period,
+      confidence: "medium",
+      allowedUse: "guidance-comparison",
+      note: baseNote,
+    });
+  }
+
+  if (estimate.analystCount !== undefined) {
+    facts.push({
+      id: `consensus-analyst-count-${index + 1}`,
+      factType: "analyst-count",
+      sourceKind,
+      sourceId,
+      label: `${ticker} consensus analyst count`,
+      value: estimate.analystCount,
+      unit: "analysts",
+      period,
+      confidence: "medium",
+      allowedUse: "consensus-context",
+      note: baseNote,
+    });
+  }
+
+  return facts;
 }
 
 function slugify(value: string) {

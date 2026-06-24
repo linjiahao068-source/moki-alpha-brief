@@ -1,4 +1,5 @@
 import type {
+  ConsensusEvidencePack,
   EvidencePack,
   IrEvidencePack,
   MarketEvidencePack,
@@ -19,6 +20,7 @@ export function buildResearchEvidenceContext({
   secEvidencePack,
   irEvidencePack,
   marketEvidencePack,
+  consensusEvidencePack,
 }: {
   ticker: string;
   companyName?: string;
@@ -26,17 +28,20 @@ export function buildResearchEvidenceContext({
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
 }): ResearchEvidenceContext | undefined {
   const hasSearchEvidence = Boolean(searchEvidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
   const hasIrEvidence = Boolean(irEvidencePack);
   const hasMarketEvidence = Boolean(marketEvidencePack);
+  const hasConsensusEvidence = Boolean(consensusEvidencePack);
 
   if (
     !hasSearchEvidence &&
     !hasSecEvidence &&
     !hasIrEvidence &&
-    !hasMarketEvidence
+    !hasMarketEvidence &&
+    !hasConsensusEvidence
   ) return undefined;
 
   const sourceRegistry = buildSourceRegistry({
@@ -44,12 +49,14 @@ export function buildResearchEvidenceContext({
     secEvidencePack,
     irEvidencePack,
     marketEvidencePack,
+    consensusEvidencePack,
   });
   const factLedger = buildFactLedger({
     searchEvidencePack,
     secEvidencePack,
     irEvidencePack,
     marketEvidencePack,
+    consensusEvidencePack,
   });
   const linkedSources = linkFactsToSources(sourceRegistry, factLedger);
   const coverage = buildEvidenceCoverage({
@@ -57,6 +64,7 @@ export function buildResearchEvidenceContext({
     secEvidencePack,
     irEvidencePack,
     marketEvidencePack,
+    consensusEvidencePack,
     factLedger,
   });
   const warnings = [
@@ -64,6 +72,7 @@ export function buildResearchEvidenceContext({
     ...(secEvidencePack?.warnings || []),
     ...(irEvidencePack?.warnings || []),
     ...(marketEvidencePack?.warnings || []),
+    ...(consensusEvidencePack?.warnings || []),
     ...coverage.warnings,
   ];
 
@@ -73,6 +82,7 @@ export function buildResearchEvidenceContext({
       secEvidencePack?.asOf,
       irEvidencePack?.asOf,
       marketEvidencePack?.asOf,
+      consensusEvidencePack?.asOf,
       formatCstTimestamp(),
     ]),
     ticker: ticker.trim().toUpperCase(),
@@ -81,18 +91,21 @@ export function buildResearchEvidenceContext({
       secEvidencePack?.companyName ||
       searchEvidencePack?.companyName ||
       irEvidencePack?.companyName ||
-      marketEvidencePack?.companyName,
+      marketEvidencePack?.companyName ||
+      consensusEvidencePack?.companyName,
     dataMode: "evidence-draft",
     evidenceLevel: getEvidenceLevel(
       hasSearchEvidence,
       hasSecEvidence,
       hasIrEvidence,
       hasMarketEvidence,
+      hasConsensusEvidence,
     ),
     searchEvidencePack,
     secEvidencePack,
     irEvidencePack,
     marketEvidencePack,
+    consensusEvidencePack,
     sourceRegistry: linkedSources,
     factLedger,
     coverage,
@@ -105,33 +118,25 @@ function getEvidenceLevel(
   hasSecEvidence: boolean,
   hasIrEvidence: boolean,
   hasMarketEvidence: boolean,
+  hasConsensusEvidence: boolean,
 ): ResearchEvidenceLevel {
-  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "search-sec-ir-and-market";
+  const parts = [
+    hasSearchEvidence ? "search" : "",
+    hasSecEvidence ? "sec" : "",
+    hasIrEvidence ? "ir" : "",
+    hasMarketEvidence ? "market" : "",
+    hasConsensusEvidence ? "consensus" : "",
+  ].filter(Boolean);
+
+  if (!parts.length) return "none";
+  if (parts.length === 1) return `${parts[0]}-only` as ResearchEvidenceLevel;
+  if (parts.length === 2) {
+    return `${parts[0]}-and-${parts[1]}` as ResearchEvidenceLevel;
   }
-  if (hasSearchEvidence && hasSecEvidence && hasMarketEvidence) {
-    return "search-sec-and-market";
-  }
-  if (hasSearchEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "search-ir-and-market";
-  }
-  if (hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "sec-ir-and-market";
-  }
-  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
-    return "search-sec-and-ir";
-  }
-  if (hasSearchEvidence && hasMarketEvidence) return "search-and-market";
-  if (hasSecEvidence && hasMarketEvidence) return "sec-and-market";
-  if (hasIrEvidence && hasMarketEvidence) return "ir-and-market";
-  if (hasSearchEvidence && hasSecEvidence) return "search-and-sec";
-  if (hasSearchEvidence && hasIrEvidence) return "search-and-ir";
-  if (hasSecEvidence && hasIrEvidence) return "sec-and-ir";
-  if (hasSearchEvidence) return "search-only";
-  if (hasSecEvidence) return "sec-only";
-  if (hasIrEvidence) return "ir-only";
-  if (hasMarketEvidence) return "market-only";
-  return "none";
+
+  return `${parts.slice(0, -1).join("-")}-and-${
+    parts[parts.length - 1]
+  }` as ResearchEvidenceLevel;
 }
 
 function linkFactsToSources(
