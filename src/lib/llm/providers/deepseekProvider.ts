@@ -224,22 +224,26 @@ function normalizeDeepSeekBrief(
   const secEvidencePack = input.secEvidencePack;
   const irEvidencePack = input.irEvidencePack;
   const marketEvidencePack = input.marketEvidencePack;
+  const consensusEvidencePack = input.consensusEvidencePack;
   const researchEvidenceContext = input.researchEvidenceContext;
   const hasSearchEvidence = Boolean(evidencePack);
   const hasSecEvidence = Boolean(secEvidencePack);
   const hasIrEvidence = Boolean(irEvidencePack);
   const hasMarketEvidence = Boolean(marketEvidencePack);
+  const hasConsensusEvidence = Boolean(consensusEvidencePack);
   const hasAnyEvidence =
     Boolean(researchEvidenceContext) ||
     hasSearchEvidence ||
     hasSecEvidence ||
     hasIrEvidence ||
-    hasMarketEvidence;
+    hasMarketEvidence ||
+    hasConsensusEvidence;
   const evidenceLabel = getEvidenceLabel(
     hasSearchEvidence,
     hasSecEvidence,
     hasIrEvidence,
     hasMarketEvidence,
+    hasConsensusEvidence,
     researchEvidenceContext?.evidenceLevel,
   );
   const companyName =
@@ -248,6 +252,7 @@ function normalizeDeepSeekBrief(
     secEvidencePack?.companyName ||
     irEvidencePack?.companyName ||
     marketEvidencePack?.companyName ||
+    consensusEvidencePack?.companyName ||
     `${ticker} Demo Company`;
 
   brief.schemaVersion = "0.1";
@@ -298,6 +303,7 @@ function normalizeDeepSeekBrief(
         secEvidencePack,
         irEvidencePack,
         marketEvidencePack,
+        consensusEvidencePack,
         researchEvidenceContext,
         now,
       }),
@@ -314,6 +320,7 @@ function normalizeDeepSeekBrief(
   brief.secEvidencePack = secEvidencePack;
   brief.irEvidencePack = irEvidencePack;
   brief.marketEvidencePack = marketEvidencePack;
+  brief.consensusEvidencePack = consensusEvidencePack;
   brief.researchEvidenceContext = researchEvidenceContext;
   brief.evidenceSummary = researchEvidenceContext?.coverage;
 
@@ -372,59 +379,33 @@ function getEvidenceLabel(
   hasSecEvidence: boolean,
   hasIrEvidence: boolean,
   hasMarketEvidence: boolean,
+  hasConsensusEvidence: boolean,
   evidenceLevel?: string,
 ) {
-  if (evidenceLevel === "search-sec-ir-and-market") {
-    return "Search + SEC + IR + Market Evidence Draft";
+  if (evidenceLevel && evidenceLevel !== "none") {
+    return `${getEvidenceLabelParts(evidenceLevel).join(" + ")} Evidence Draft`;
   }
-  if (evidenceLevel === "search-sec-and-market") {
-    return "Search + SEC + Market Evidence Draft";
-  }
-  if (evidenceLevel === "search-ir-and-market") {
-    return "Search + IR + Market Evidence Draft";
-  }
-  if (evidenceLevel === "sec-ir-and-market") {
-    return "SEC + IR + Market Evidence Draft";
-  }
-  if (evidenceLevel === "search-sec-and-ir") {
-    return "Search + SEC + IR Evidence Draft";
-  }
-  if (evidenceLevel === "search-and-market") return "Search + Market Evidence Draft";
-  if (evidenceLevel === "sec-and-market") return "SEC + Market Evidence Draft";
-  if (evidenceLevel === "ir-and-market") return "IR + Market Evidence Draft";
-  if (evidenceLevel === "search-and-sec") return "Search + SEC Evidence Draft";
-  if (evidenceLevel === "search-and-ir") return "Search + IR Evidence Draft";
-  if (evidenceLevel === "sec-and-ir") return "SEC + IR Evidence Draft";
-  if (evidenceLevel === "sec-only") return "SEC Evidence Draft";
-  if (evidenceLevel === "search-only") return "Search Evidence Draft";
-  if (evidenceLevel === "ir-only") return "IR Evidence Draft";
-  if (evidenceLevel === "market-only") return "Market Evidence Draft";
-  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "Search + SEC + IR + Market Evidence Draft";
-  }
-  if (hasSearchEvidence && hasSecEvidence && hasMarketEvidence) {
-    return "Search + SEC + Market Evidence Draft";
-  }
-  if (hasSearchEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "Search + IR + Market Evidence Draft";
-  }
-  if (hasSecEvidence && hasIrEvidence && hasMarketEvidence) {
-    return "SEC + IR + Market Evidence Draft";
-  }
-  if (hasSearchEvidence && hasSecEvidence && hasIrEvidence) {
-    return "Search + SEC + IR Evidence Draft";
-  }
-  if (hasSearchEvidence && hasMarketEvidence) return "Search + Market Evidence Draft";
-  if (hasSecEvidence && hasMarketEvidence) return "SEC + Market Evidence Draft";
-  if (hasIrEvidence && hasMarketEvidence) return "IR + Market Evidence Draft";
-  if (hasSearchEvidence && hasSecEvidence) return "Search + SEC Evidence Draft";
-  if (hasSearchEvidence && hasIrEvidence) return "Search + IR Evidence Draft";
-  if (hasSecEvidence && hasIrEvidence) return "SEC + IR Evidence Draft";
-  if (hasSecEvidence) return "SEC Evidence Draft";
-  if (hasSearchEvidence) return "Search Evidence Draft";
-  if (hasIrEvidence) return "IR Evidence Draft";
-  if (hasMarketEvidence) return "Market Evidence Draft";
+
+  const parts = [
+    hasSearchEvidence ? "Search" : "",
+    hasSecEvidence ? "SEC" : "",
+    hasIrEvidence ? "IR" : "",
+    hasMarketEvidence ? "Market" : "",
+    hasConsensusEvidence ? "Consensus" : "",
+  ].filter(Boolean);
+
+  if (parts.length) return `${parts.join(" + ")} Evidence Draft`;
   return "LLM Demo / No Live Data";
+}
+
+function getEvidenceLabelParts(evidenceLevel: string) {
+  return [
+    evidenceLevel.includes("search") ? "Search" : "",
+    /\bsec\b/.test(evidenceLevel) ? "SEC" : "",
+    /\bir\b/.test(evidenceLevel) ? "IR" : "",
+    evidenceLevel.includes("market") ? "Market" : "",
+    evidenceLevel.includes("consensus") ? "Consensus" : "",
+  ].filter(Boolean);
 }
 
 function ensureDataBadge(
@@ -458,6 +439,7 @@ function buildEvidenceSourceNote({
   secEvidencePack,
   irEvidencePack,
   marketEvidencePack,
+  consensusEvidencePack,
   researchEvidenceContext,
   now,
 }: {
@@ -465,12 +447,19 @@ function buildEvidenceSourceNote({
   secEvidencePack: GenerateBriefInput["secEvidencePack"];
   irEvidencePack: GenerateBriefInput["irEvidencePack"];
   marketEvidencePack: GenerateBriefInput["marketEvidencePack"];
+  consensusEvidencePack: GenerateBriefInput["consensusEvidencePack"];
   researchEvidenceContext: GenerateBriefInput["researchEvidenceContext"];
   now: string;
 }) {
   const notes: string[] = [];
 
   if (researchEvidenceContext) {
+    if (researchEvidenceContext.evidenceLevel === "search-sec-ir-market-and-consensus") {
+      notes.push(
+        "Search + SEC + IR + Market + Consensus Evidence Draft: Tavily/search evidence, SEC companyfacts / submissions, Company IR / earnings-release evidence, third-party free market evidence, and mock consensus estimate context are attached.",
+      );
+    }
+
     if (researchEvidenceContext.evidenceLevel === "search-sec-ir-and-market") {
       notes.push(
         "Search + SEC + IR + Market Evidence Draft: Tavily/search evidence, SEC companyfacts / submissions, Company IR / earnings-release evidence, and third-party free market evidence are attached.",
@@ -521,6 +510,14 @@ function buildEvidenceSourceNote({
     notes.push("Market evidence is not connected.");
   }
 
+  if (consensusEvidencePack) {
+    notes.push(
+      `Consensus Evidence Draft: Consensus provider=mock; consensusProvider=${consensusEvidencePack.provider}; providerChain=${consensusEvidencePack.providerChain?.join(" -> ") || consensusEvidencePack.provider}; period=${consensusEvidencePack.period}; asOf=${consensusEvidencePack.asOf || now}; estimateCount=${consensusEvidencePack.estimates.length}; dataMode=evidence-draft; consensus is mock evidence; not verified-real-data; not investment advice; not SEC actual data; not market price data.`,
+    );
+  } else if (notes.length) {
+    notes.push("Consensus estimates are not connected.");
+  }
+
   if (!notes.length) {
     notes.push(
       "LLM Demo / No Live Data: 当前未接入真实 SEC、公司 IR、实时股价、一致预期或新闻检索。",
@@ -528,9 +525,11 @@ function buildEvidenceSourceNote({
   }
 
   notes.push(
-    marketEvidencePack
-      ? "Current scope still excludes consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus. Market evidence is third-party free market context only and is not verification-grade data, a formal trading quote, or investment advice."
-      : "Current scope still excludes real-time market price, consensus estimates, database save, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus.",
+    consensusEvidencePack
+      ? "Current scope still excludes login, editing, history versions, manual verification, PDF full-text parsing, transcript full-text parsing, and real FMP / Finnhub consensus providers. Company IR evidence must not be treated as SEC official financial facts or consensus. Market evidence is third-party free market context only and is not verification-grade data, a formal trading quote, or investment advice. Consensus evidence is mock-only context and must not be treated as SEC actual data."
+      : marketEvidencePack
+        ? "Current scope still excludes consensus estimates, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus. Market evidence is third-party free market context only and is not verification-grade data, a formal trading quote, or investment advice."
+        : "Current scope still excludes real-time market price, consensus estimates, manual verification, PDF full-text parsing, and transcript full-text parsing. Company IR evidence must not be treated as SEC official financial facts or consensus.",
   );
 
   return notes.join(" ");

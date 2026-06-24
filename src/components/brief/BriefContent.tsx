@@ -61,10 +61,12 @@ export function BriefContent({ brief }: BriefContentProps) {
             hasSecEvidencePack={Boolean(brief.secEvidencePack)}
             hasIrEvidencePack={Boolean(brief.irEvidencePack)}
             hasMarketEvidencePack={Boolean(brief.marketEvidencePack)}
+            hasConsensusEvidencePack={Boolean(brief.consensusEvidencePack)}
             searchProvider={brief.evidencePack?.searchProvider}
             secProvider={brief.secEvidencePack?.provider}
             irProvider={brief.irEvidencePack?.provider}
             marketProvider={brief.marketEvidencePack?.provider}
+            consensusProvider={brief.consensusEvidencePack?.provider}
             sourceNote={brief.sourceNote}
           />
         </div>

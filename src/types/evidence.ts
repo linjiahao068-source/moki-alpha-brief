@@ -16,7 +16,7 @@ export type MarketProviderName =
 
 export type MarketEvidenceProviderName = Exclude<MarketProviderName, "auto-free">;
 
-export type ConsensusProviderName = "mock" | "fmp" | "finnhub";
+export type ConsensusProviderName = "mock";
 
 export type ResearchEvidenceLevel =
   | "none"

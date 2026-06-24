@@ -41,7 +41,7 @@ export const globalStockDataMarketProvider: MarketProvider = {
     const warnings: string[] = [
       "Free public market data source may be delayed or incomplete.",
       "Market evidence is for research context only, not official trading quote.",
-      "Consensus estimates are not connected.",
+      "Market evidence is not consensus evidence.",
     ];
 
     const candidates = await Promise.allSettled([

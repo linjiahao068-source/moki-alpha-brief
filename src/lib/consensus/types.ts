@@ -15,8 +15,6 @@ export type ConsensusConfig = {
   provider: ConsensusProviderName;
   period: ConsensusPeriod;
   maxPeriods: number;
-  fmpApiKey?: string;
-  finnhubApiKey?: string;
 };
 
 export type ConsensusProviderPayload = {

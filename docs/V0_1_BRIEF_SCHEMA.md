@@ -472,3 +472,81 @@ New coverage fields:
 Market evidence is an evidence draft for third-party free market context only. It cannot be treated as SEC official-financial data, consensus estimates, a formal trading quote, a formal rating, a trading signal, or verified-real-data.
 
 See: `docs/V0_1_MARKET_DATA_MVP.md`.
+
+## Phase 10 SavedBriefRecord Extension
+
+Phase 10 adds `SavedBriefRecord` as a persistence wrapper around a renderable `BriefDocument`.
+
+Type location:
+
+```text
+src/types/savedBrief.ts
+```
+
+Shape:
+
+```ts
+type SavedBriefRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  ticker: string;
+  companyName?: string;
+  createdAt: string;
+  updatedAt: string;
+  schemaVersion: string;
+  dataMode: "evidence-draft";
+  evidenceLevel: string;
+  modelProvider?: string;
+  modelName?: string;
+  isFallback?: boolean;
+  briefDocument: BriefDocument;
+  evidenceSummary?: object;
+  sourceCounts?: object;
+  warnings?: string[];
+  disclaimer?: string;
+};
+```
+
+Rules:
+
+- `SavedBriefRecord.dataMode` is always `evidence-draft`.
+- `briefDocument.metadata.dataMode` must be `evidence-draft` before save.
+- `verified-real-data` is rejected.
+- The saved record must be renderable directly at `/s/[slug]`.
+- The saved record must not contain API keys, `reasoning_content`, raw model output, raw provider responses, internal error stacks, or debug fields.
+- The saved share page may display compact `evidenceSummary` and `sourceCounts`, but not raw provider panels or raw JSON.
+
+See: `docs/V0_1_SAVED_BRIEF_SHARE_MVP.md`.
+
+## Phase 10.0.1 ConsensusEvidencePack Extension
+
+`BriefDocument` now supports an optional `consensusEvidencePack` alongside Search, SEC, IR, Market, and `researchEvidenceContext`.
+
+`ConsensusEvidencePack` includes:
+
+- `ticker`
+- `companyName`
+- `provider: "mock"`
+- `dataMode: "evidence-draft"`
+- `period`
+- `estimates`
+- `sources`
+- `warnings`
+- `isFallback`
+- `providerChain`
+
+`ConsensusEstimate` includes normalized revenue / EPS estimate fields, analyst count, currency, `sourceProvider: "mock"`, `confidence: "medium"`, and allowed-use boundaries.
+
+New consensus-aware `evidenceLevel` values include `consensus-only`, `market-and-consensus`, and `search-sec-ir-market-and-consensus`.
+
+Rules:
+
+- Consensus Evidence is mock-only in Phase 10.0.1.
+- It is not SEC actual data.
+- It is not market price data.
+- It is not verified-real-data.
+- It must not produce a formal target price or formal rating.
+- Saved BriefDocuments may keep the normalized consensus pack, but must not keep raw provider responses or `reasoning_content`.
+
+See: `docs/V0_1_CONSENSUS_ESTIMATES_BACKFILL.md`.

@@ -634,3 +634,73 @@ Added `stock-api` as a server-side Market Evidence provider:
 - Market Evidence remains evidence-draft only, not verified-real-data, not consensus, not a formal trading quote, not a formal target price, and not a formal rating.
 
 Future commercial-grade providers such as Twelve Data, Polygon, or Finnhub remain out of scope for this phase.
+
+### Phase 10: Saved Brief + Real Share Page MVP
+
+Status: completed in this iteration.
+
+Phase 10 saves generated evidence-draft `BriefDocument` records and creates real unlisted `/s/[slug]` links.
+
+Added:
+
+- `src/types/savedBrief.ts` with `SavedBriefRecord`.
+- `src/lib/storage/*` server-only storage adapter layer.
+- `memory` store for local development.
+- `upstash` store using `@upstash/redis` for deployment.
+- `POST /api/briefs`.
+- `GET /api/briefs/[slug]`.
+- `/generate` save/share controls.
+- `/s/[slug]` saved brief lookup before static demo fallback.
+- `docs/V0_1_SAVED_BRIEF_SHARE_MVP.md`.
+
+Storage config:
+
+```env
+BRIEF_STORAGE_PROVIDER=memory
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+BRIEF_SHARE_BASE_URL=http://localhost:3000
+```
+
+Important boundaries:
+
+- Local default is `memory`; production should use `upstash`.
+- Upstash token is server-only. Do not create `NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN`.
+- Share links are unlisted public links; no login, permissions, payment, editor, or history versions.
+- Saved pages render `savedBrief.briefDocument` and do not call LLM, Search, SEC, IR, Market, or Consensus providers.
+- Saved records keep `dataMode=evidence-draft`.
+- `verified-real-data` remains forbidden and is rejected before save.
+- Save sanitization removes API keys, tokens, raw model output, raw provider responses, `reasoning_content`, internal error stacks, and debug fields.
+- Saved pages do not show raw JSON or `reasoning_content`.
+- Saved briefs are not investment advice.
+
+### Phase 10.0.1: Consensus Evidence Backfill
+
+Status: completed in this iteration.
+
+Phase 10.0.1 backfills the Phase 9.6 consensus / estimates layer on top of the completed Phase 10 save/share architecture.
+
+Added:
+
+- `ConsensusEvidencePack` and `ConsensusEstimate`.
+- `CONSENSUS_PROVIDER=mock`, `CONSENSUS_PERIOD=quarter`, and `CONSENSUS_MAX_PERIODS=4`.
+- Mock-only consensus provider modules in `src/lib/consensus/*`.
+- `POST /api/consensus-evidence`.
+- `useConsensus` support in `POST /api/generate-brief`.
+- `consensusEvidencePack` in `ResearchEvidenceContext`.
+- Consensus source registry, fact ledger, coverage, compact prompt, prompt rules, validation, and quality warnings.
+- `/generate` Use Consensus Estimates toggle.
+- `ConsensusEvidencePanel`.
+- Saved Brief compatibility for consensus source counts, evidence summary, and `evidenceLevel=search-sec-ir-market-and-consensus`.
+
+Important boundaries:
+
+- No real FMP API is connected.
+- No real Finnhub API is connected.
+- No consensus API key is needed.
+- Do not add `NEXT_PUBLIC_CONSENSUS_PROVIDER`.
+- Consensus Evidence is mock evidence only.
+- Consensus Evidence is not SEC actual data, not market price data, not verified-real-data, not a formal rating, not a formal target price, and not investment advice.
+- `/s/[slug]` renders the saved `BriefDocument` only and does not call LLM or evidence providers again.
+
+Full handoff: `docs/V0_1_CONSENSUS_ESTIMATES_BACKFILL.md`.

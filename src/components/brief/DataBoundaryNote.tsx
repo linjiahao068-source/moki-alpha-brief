@@ -23,7 +23,8 @@ export function DataBoundaryNote({
       brief.evidencePack ||
       brief.secEvidencePack ||
       brief.irEvidencePack ||
-      brief.marketEvidencePack,
+      brief.marketEvidencePack ||
+      brief.consensusEvidencePack,
   );
   const isVerified = dataMode === "verified-real-data";
   const isEvidenceDraft = dataMode === "evidence-draft";
@@ -33,10 +34,12 @@ export function DataBoundaryNote({
     hasSecEvidence: Boolean(brief.secEvidencePack),
     hasIrEvidence: Boolean(brief.irEvidencePack),
     hasMarketEvidence: Boolean(brief.marketEvidencePack),
+    hasConsensusEvidence: Boolean(brief.consensusEvidencePack),
     searchProvider: brief.evidencePack?.searchProvider,
     secProvider: brief.secEvidencePack?.provider,
     irProvider: brief.irEvidencePack?.provider,
     marketProvider: brief.marketEvidencePack?.provider,
+    consensusProvider: brief.consensusEvidencePack?.provider,
   });
 
   return (

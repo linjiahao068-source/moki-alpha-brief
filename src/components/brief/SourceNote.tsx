@@ -6,6 +6,7 @@ import type {
   SecProviderName,
   IrProviderName,
   MarketProviderName,
+  ConsensusProviderName,
 } from "@/types/evidence";
 
 type SourceNoteProps = {
@@ -15,11 +16,13 @@ type SourceNoteProps = {
   hasSecEvidencePack?: boolean;
   hasIrEvidencePack?: boolean;
   hasMarketEvidencePack?: boolean;
+  hasConsensusEvidencePack?: boolean;
   evidenceLevel?: ResearchEvidenceLevel;
   searchProvider?: SearchProviderName;
   secProvider?: SecProviderName;
   irProvider?: IrProviderName;
   marketProvider?: MarketProviderName;
+  consensusProvider?: ConsensusProviderName;
 };
 
 export function SourceNote({
@@ -30,10 +33,12 @@ export function SourceNote({
   hasSecEvidencePack = false,
   hasIrEvidencePack = false,
   hasMarketEvidencePack = false,
+  hasConsensusEvidencePack = false,
   searchProvider,
   secProvider,
   irProvider,
   marketProvider,
+  consensusProvider,
 }: SourceNoteProps) {
   const evidenceState = getEvidenceStatusCopy({
     evidenceLevel,
@@ -41,10 +46,12 @@ export function SourceNote({
     hasSecEvidence: hasSecEvidencePack,
     hasIrEvidence: hasIrEvidencePack,
     hasMarketEvidence: hasMarketEvidencePack,
+    hasConsensusEvidence: hasConsensusEvidencePack,
     searchProvider,
     secProvider,
     irProvider,
     marketProvider,
+    consensusProvider,
   });
 
   return (

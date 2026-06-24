@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { getBriefTocItems } from "@/lib/briefs/getBriefTocItems";
 import { validateBriefDocument } from "@/lib/briefs/validateBrief";
 import type { BriefDocument } from "@/types/brief";
@@ -9,10 +10,15 @@ import { BriefToc } from "./BriefToc";
 
 type BriefPageProps = {
   brief: BriefDocument;
+  shareMeta?: ReactNode;
   variant?: "full" | "embedded";
 };
 
-export function BriefPage({ brief, variant = "full" }: BriefPageProps) {
+export function BriefPage({
+  brief,
+  shareMeta,
+  variant = "full",
+}: BriefPageProps) {
   const tocItems = getBriefTocItems(brief);
   const validationIssues = validateBriefDocument(brief);
   const isEmbedded = variant === "embedded";
@@ -29,6 +35,11 @@ export function BriefPage({ brief, variant = "full" }: BriefPageProps) {
     >
       <BriefHeader metadata={brief.metadata} />
       <BriefHero brief={brief} />
+      {shareMeta ? (
+        <div className="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6">
+          {shareMeta}
+        </div>
+      ) : null}
       <div className="mx-auto grid w-full max-w-[1180px] gap-6 px-4 pb-10 sm:px-6 lg:grid-cols-[minmax(0,920px)_232px] lg:items-start">
         <BriefContent brief={brief} />
         <BriefToc items={tocItems} />

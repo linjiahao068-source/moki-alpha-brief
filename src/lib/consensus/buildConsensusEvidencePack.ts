@@ -1,8 +1,6 @@
 import type { ConsensusEvidencePack, ConsensusProviderName } from "@/types/evidence";
 import { getConsensusConfig } from "./config";
 import { normalizeConsensusTicker } from "./normalizeConsensusTicker";
-import { finnhubConsensusProvider } from "./providers/finnhubConsensusProvider";
-import { fmpConsensusProvider } from "./providers/fmpConsensusProvider";
 import { mockConsensusProvider } from "./providers/mockConsensusProvider";
 import type {
   ConsensusEvidenceResult,
@@ -12,14 +10,12 @@ import type {
 
 const consensusProviders: Record<ConsensusProviderName, ConsensusProvider> = {
   mock: mockConsensusProvider,
-  fmp: fmpConsensusProvider,
-  finnhub: finnhubConsensusProvider,
 };
 
 const CORE_WARNINGS = [
-  "Consensus data may be delayed or incomplete.",
-  "Provider access may depend on API plan.",
-  "Consensus evidence is not SEC data or market price data.",
+  "Consensus estimates are mock evidence in this MVP.",
+  "Consensus evidence is not SEC actual data.",
+  "Consensus evidence is not market price data.",
   "Consensus evidence is not verified-real-data.",
 ];
 
@@ -29,8 +25,10 @@ export async function buildConsensusEvidencePack(
   const config = getConsensusConfig();
   const period = input.period || config.period;
   const ticker = normalizeConsensusTicker(input.ticker);
-  const providerChain = getProviderChain(config.provider, config);
-  const fallbackWarnings = getProviderConfigWarnings(config);
+  const providerChain = getProviderChain(config.provider);
+  const fallbackWarnings = [
+    "Using mock consensus evidence; no FMP or Finnhub provider request was run in this MVP.",
+  ];
   const failureReasons: string[] = [];
 
   for (let index = 0; index < providerChain.length; index += 1) {
@@ -45,16 +43,8 @@ export async function buildConsensusEvidencePack(
         provider,
         providerName,
         providerChain,
-        isFallback: index > 0 || fallbackWarnings.length > 0,
-        warnings: [
-          ...fallbackWarnings,
-          ...(providerName === "mock" && config.provider === "mock"
-            ? ["Using mock consensus evidence; no analyst estimate provider request was run."]
-            : []),
-          ...(providerName === "mock" && config.provider !== "mock"
-            ? ["Consensus provider fallback used when configured provider is unavailable."]
-            : []),
-        ],
+        isFallback: true,
+        warnings: fallbackWarnings,
       });
 
       return {
@@ -139,31 +129,9 @@ async function collectConsensusEvidence({
 
 function getProviderChain(
   provider: ConsensusProviderName,
-  config: ReturnType<typeof getConsensusConfig>,
 ) {
-  if (provider === "mock") return ["mock"] satisfies ConsensusProviderName[];
-  if (provider === "fmp" && config.fmpApiKey) {
-    return ["fmp", "mock"] satisfies ConsensusProviderName[];
-  }
-  if (provider === "finnhub" && config.finnhubApiKey) {
-    return ["finnhub", "mock"] satisfies ConsensusProviderName[];
-  }
+  void provider;
   return ["mock"] satisfies ConsensusProviderName[];
-}
-
-function getProviderConfigWarnings(config: ReturnType<typeof getConsensusConfig>) {
-  const warnings: string[] = [];
-
-  if (config.provider === "fmp" && !config.fmpApiKey) {
-    warnings.push("CONSENSUS_PROVIDER=fmp but FMP_API_KEY is missing; falling back to mock.");
-  }
-  if (config.provider === "finnhub" && !config.finnhubApiKey) {
-    warnings.push(
-      "CONSENSUS_PROVIDER=finnhub but FINNHUB_API_KEY is missing; falling back to mock.",
-    );
-  }
-
-  return warnings;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

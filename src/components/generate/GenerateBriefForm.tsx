@@ -6,10 +6,12 @@ import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { DeepSeekModelMode } from "@/lib/llm/types";
 import type { BriefDocument } from "@/types/brief";
 import type {
+  ConsensusEvidencePack,
   EvidenceCoverageSummary,
   ResearchEvidenceContext,
   ResearchEvidenceLevel,
 } from "@/types/evidence";
+import { ConsensusEvidencePanel } from "./ConsensusEvidencePanel";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
 import { IrEvidencePanel } from "./IrEvidencePanel";
 import { MarketEvidencePanel } from "./MarketEvidencePanel";
@@ -42,6 +44,10 @@ type GenerateApiResult = {
   marketProviderChain?: Array<"mock" | "stock-api" | "global-stock-data">;
   marketAttemptedProviders?: Array<"mock" | "stock-api" | "global-stock-data">;
   marketWarnings?: string[];
+  consensusProvider?: "mock";
+  consensusIsFallback?: boolean;
+  consensusProviderChain?: Array<"mock">;
+  consensusWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;
@@ -58,6 +64,7 @@ export function GenerateBriefForm() {
   const [useSec, setUseSec] = useState(false);
   const [useIr, setUseIr] = useState(false);
   const [useMarket, setUseMarket] = useState(false);
+  const [useConsensus, setUseConsensus] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +84,7 @@ export function GenerateBriefForm() {
         hasSecEvidence: Boolean(result?.brief?.secEvidencePack),
         hasIrEvidence: Boolean(result?.brief?.irEvidencePack),
         hasMarketEvidence: Boolean(result?.brief?.marketEvidencePack),
+        hasConsensusEvidence: Boolean(result?.brief?.consensusEvidencePack),
         searchProvider:
           result?.searchProvider || result?.brief?.evidencePack?.searchProvider,
         secProvider:
@@ -84,6 +92,8 @@ export function GenerateBriefForm() {
         irProvider: result?.irProvider || result?.brief?.irEvidencePack?.provider,
         marketProvider:
           result?.marketProvider || result?.brief?.marketEvidencePack?.provider,
+        consensusProvider:
+          result?.consensusProvider || result?.brief?.consensusEvidencePack?.provider,
       }),
     [evidenceLevel, result],
   );
@@ -111,6 +121,10 @@ export function GenerateBriefForm() {
     () => (result?.marketWarnings || []).filter(Boolean),
     [result],
   );
+  const consensusWarningList = useMemo(
+    () => (result?.consensusWarnings || []).filter(Boolean),
+    [result],
+  );
   const evidenceStats = useMemo(
     () => getEvidenceStats(result?.brief),
     [result],
@@ -118,6 +132,10 @@ export function GenerateBriefForm() {
   const secStats = useMemo(() => getSecStats(result?.brief), [result]);
   const irStats = useMemo(() => getIrStats(result?.brief), [result]);
   const marketStats = useMemo(() => getMarketStats(result?.brief), [result]);
+  const consensusStats = useMemo(
+    () => getConsensusStats(result?.brief?.consensusEvidencePack),
+    [result],
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -138,6 +156,7 @@ export function GenerateBriefForm() {
           useSec,
           useIr,
           useMarket,
+          useConsensus,
         }),
       });
       const payload = (await response.json()) as GenerateApiResult;
@@ -232,12 +251,21 @@ export function GenerateBriefForm() {
           label="Use Market Data"
           onChange={setUseMarket}
         />
+        <EvidenceToggle
+          checked={useConsensus}
+          description="Fetch revenue / EPS analyst estimate context for expectation-gap analysis. Consensus evidence is mock/draft in this MVP."
+          label="Use Consensus Estimates"
+          onChange={setUseConsensus}
+        />
 
         <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
           Current mode is LLM Demo / Evidence Draft. Optional Search, SEC,
-          Company IR, and Market evidence remain draft inputs; free market data
-          may be delayed or incomplete. Consensus estimates, database save, PDF full-text parsing, transcript
-          full-text parsing, and manual verification are still out of scope.
+          Company IR, Market, and Consensus evidence remain draft inputs; free
+          market data may be delayed or incomplete, and consensus is mock-only
+          in this MVP. Saved share links preserve the rendered
+          BriefDocument only. Login, editing, version history, PDF full-text
+          parsing, transcript full-text parsing, and manual verification are
+          still out of scope.
         </div>
 
         <button
@@ -245,7 +273,7 @@ export function GenerateBriefForm() {
           disabled={isLoading}
           className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[8px] bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--brand-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-hover)] focus:ring-offset-2 focus:ring-offset-[var(--background)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isLoading ? "Generating..." : "生成 Brief"}
+          {isLoading ? "Generating..." : "Generate Brief"}
         </button>
       </form>
 
@@ -285,6 +313,10 @@ export function GenerateBriefForm() {
             <StatusItem label="Market Price" value={marketStats.price} mono />
             <StatusItem label="Market Timestamp" value={marketStats.timestamp} mono />
             <StatusItem label="Market History" value={marketStats.history} mono />
+            <StatusItem label="Consensus Provider" value={result.consensusProvider || "n/a"} mono />
+            <StatusItem label="Revenue Consensus" value={consensusStats.revenue} mono />
+            <StatusItem label="EPS Consensus" value={consensusStats.eps} mono />
+            <StatusItem label="Analyst Count" value={consensusStats.analystCount} mono />
           </div>
 
           <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
@@ -303,7 +335,9 @@ export function GenerateBriefForm() {
 
           {(result.modelMode || modelMode) === "reasoner" ? (
             <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-              使用 Deep Reasoning 模式生成；内部推理过程不会展示，仅展示最终结构化 BriefDocument。
+              Deep Reasoning may use internal reasoning, but this page only
+              displays the final structured BriefDocument. reasoning_content is
+              not shown or stored.
             </p>
           ) : null}
 
@@ -313,6 +347,7 @@ export function GenerateBriefForm() {
           <IssuePanel title="SEC Warnings" items={secWarningList} />
           <IssuePanel title="IR Warnings" items={irWarningList} />
           <IssuePanel title="Market Warnings" items={marketWarningList} />
+          <IssuePanel title="Consensus Warnings" items={consensusWarningList} />
         </section>
       ) : null}
 
@@ -356,11 +391,19 @@ export function GenerateBriefForm() {
         />
       ) : null}
 
+      {result?.brief?.consensusEvidencePack ? (
+        <ConsensusEvidencePanel
+          consensusEvidencePack={result.brief.consensusEvidencePack}
+          warnings={consensusWarningList}
+        />
+      ) : null}
+
       {result?.brief ? (
         <GeneratedBriefPreview
           brief={result.brief}
           generationMeta={{
             provider: result.provider,
+            model: result.model,
             isFallback: result.isFallback,
             jsonRepairStatus: result.jsonRepairStatus,
             jsonRepairSucceeded: result.jsonRepairSucceeded,
@@ -588,7 +631,7 @@ function getCoverageLabel(coverage?: EvidenceCoverageSummary) {
     coverage.hasSecEvidence ? "SEC" : "SEC missing",
     coverage.hasCompanyIr ? "IR" : "IR missing",
     coverage.hasMarketPrice ? "Market Price" : "Market Price missing",
-    "Consensus missing",
+    coverage.hasConsensus ? "Consensus" : "Consensus missing",
   ].join(" / ");
 }
 
@@ -604,6 +647,22 @@ function getIrCoverageLabel(coverage?: EvidenceCoverageSummary) {
   return `${coverage.hasEarningsRelease ? "earnings yes" : "earnings no"} / ${
     coverage.hasGuidanceContext ? "guidance yes" : "guidance no"
   }`;
+}
+
+function getConsensusStats(consensusEvidencePack?: ConsensusEvidencePack) {
+  const first = consensusEvidencePack?.estimates?.[0];
+  const currency = first?.currency ? ` ${first.currency}` : "";
+
+  return {
+    revenue:
+      first?.revenueAvg !== undefined
+        ? `${formatNumber(first.revenueAvg)}${currency}`
+        : "N/A",
+    eps:
+      first?.epsAvg !== undefined ? `${formatNumber(first.epsAvg)}${currency}` : "N/A",
+    analystCount:
+      first?.analystCount !== undefined ? String(first.analystCount) : "N/A",
+  };
 }
 
 function formatNumber(value: number) {

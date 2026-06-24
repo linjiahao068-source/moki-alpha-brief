@@ -1,4 +1,5 @@
 import { assessBriefQuality } from "@/lib/briefs/assessBriefQuality";
+import { buildConsensusEvidencePack } from "@/lib/consensus/buildConsensusEvidencePack";
 import { buildResearchEvidenceContext } from "@/lib/evidence/buildResearchEvidenceContext";
 import { buildIrEvidencePack } from "@/lib/ir/buildIrEvidencePack";
 import { buildMarketEvidencePack } from "@/lib/market/buildMarketEvidencePack";
@@ -50,7 +51,8 @@ async function prepareEvidenceInput(
     (!input.useSearch || input.evidencePack) &&
     (!input.useSec || input.secEvidencePack) &&
     (!input.useIr || input.irEvidencePack) &&
-    (!input.useMarket || input.marketEvidencePack)
+    (!input.useMarket || input.marketEvidencePack) &&
+    (!input.useConsensus || input.consensusEvidencePack)
   ) {
     const researchEvidenceContext =
       input.researchEvidenceContext ||
@@ -61,6 +63,7 @@ async function prepareEvidenceInput(
         secEvidencePack: input.secEvidencePack,
         irEvidencePack: input.irEvidencePack,
         marketEvidencePack: input.marketEvidencePack,
+        consensusEvidencePack: input.consensusEvidencePack,
       });
 
     return {
@@ -72,7 +75,8 @@ async function prepareEvidenceInput(
     };
   }
 
-  const [searchResult, secResult, irResult, marketResult] = await Promise.all([
+  const [searchResult, secResult, irResult, marketResult, consensusResult] =
+    await Promise.all([
     input.useSearch && !input.evidencePack
       ? buildSearchEvidencePack({
           ticker: input.ticker,
@@ -99,6 +103,12 @@ async function prepareEvidenceInput(
           companyName: input.companyName,
         })
       : Promise.resolve(undefined),
+    input.useConsensus && !input.consensusEvidencePack
+      ? buildConsensusEvidencePack({
+          ticker: input.ticker,
+          companyName: input.companyName,
+        })
+      : Promise.resolve(undefined),
   ]);
 
   const evidencePack = input.evidencePack || searchResult?.evidencePack;
@@ -106,6 +116,8 @@ async function prepareEvidenceInput(
   const irEvidencePack = input.irEvidencePack || irResult?.irEvidencePack;
   const marketEvidencePack =
     input.marketEvidencePack || marketResult?.marketEvidencePack;
+  const consensusEvidencePack =
+    input.consensusEvidencePack || consensusResult?.consensusEvidencePack;
   const researchEvidenceContext =
     input.researchEvidenceContext ||
     buildResearchEvidenceContext({
@@ -115,6 +127,7 @@ async function prepareEvidenceInput(
       secEvidencePack,
       irEvidencePack,
       marketEvidencePack,
+      consensusEvidencePack,
     });
 
   return {
@@ -124,6 +137,7 @@ async function prepareEvidenceInput(
       secEvidencePack,
       irEvidencePack,
       marketEvidencePack,
+      consensusEvidencePack,
       researchEvidenceContext,
     },
     searchMeta: {
@@ -159,6 +173,16 @@ async function prepareEvidenceInput(
             marketAttemptedProviders: marketResult.attemptedProviders,
             marketWarnings:
               marketResult.warnings || [marketResult.error || ""].filter(Boolean),
+          }
+        : {}),
+      ...(consensusResult
+        ? {
+            consensusProvider: consensusResult.provider,
+            consensusIsFallback: consensusResult.isFallback,
+            consensusProviderChain: consensusResult.providerChain,
+            consensusWarnings:
+              consensusResult.warnings ||
+              [consensusResult.error || ""].filter(Boolean),
           }
         : {}),
     },

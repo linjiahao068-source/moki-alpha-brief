@@ -74,7 +74,7 @@ export function getEvidenceStatusCopy({
     return {
       label,
       shortDescription:
-        "LLM Demo / No Live Data. Search, SEC, Company IR, real-time market price, consensus estimates, database save, and manual verification are not connected.",
+        "LLM Demo / No Live Data. Search, SEC, Company IR, real-time market price, consensus estimates, and manual verification are not connected.",
       boundaryDescription:
         "No evidence context is attached. The generated brief must stay in demo mode and must not claim live data, SEC facts, Company IR evidence, consensus, or verified real data.",
       warningDescription:
@@ -86,13 +86,13 @@ export function getEvidenceStatusCopy({
   return {
     label,
     shortDescription: `${label}: connected evidence = ${connected}. ${providerText} Missing: ${missing}. This remains evidence-draft and is not investment advice.`,
-    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, IR, Market, and Consensus keep separate roles: search for recent public context, SEC for official companyfacts / submissions, IR for company official narrative or management commentary, Market for third-party free quote / volume / recent daily kline context, and Consensus for revenue / EPS analyst estimates. ${hasMarket ? "Market provider may be stock-api, global-stock-data, or mock fallback; free market data may be delayed, incomplete, field-limited, or unavailable." : "Market evidence is not connected."} ${hasConsensus ? "Consensus evidence is attached but may be delayed, incomplete, field-limited, or provider-plan-limited." : "Consensus evidence is not connected."} Missing: ${missing}.`,
+    boundaryDescription: `${label} is attached through Research Evidence Context. Search, SEC, IR, Market, and Consensus keep separate roles: search for recent public context, SEC for official companyfacts / submissions, IR for company official narrative or management commentary, Market for third-party free quote / volume / recent daily kline context, and Consensus for mock revenue / EPS analyst estimates. ${hasMarket ? "Market provider may be stock-api, global-stock-data, or mock fallback; free market data may be delayed, incomplete, field-limited, or unavailable." : "Market evidence is not connected."} ${hasConsensus ? "Consensus provider=mock; consensus is mock evidence for expectation context only." : "Consensus evidence is not connected."} Missing: ${missing}.`,
     warningDescription:
       hasConsensus
-        ? "Research Evidence Context is still an MVP. Consensus evidence is attached for revenue / EPS analyst estimates, may be delayed, incomplete, field-limited, or provider-plan-limited, and is not SEC actual data, market price data, verified-real-data, or investment advice. Database persistence, saved share links, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
+        ? "Research Evidence Context is still an MVP. Consensus evidence is attached for revenue / EPS analyst estimates as mock evidence, and is not SEC actual data, market price data, verified-real-data, or investment advice. Manual verification, PDF full-text parsing, transcript full-text parsing, and real FMP / Finnhub consensus providers are not connected."
         : hasMarket
-          ? "Research Evidence Context is still an MVP. Third-party free market evidence may come from stock-api, global-stock-data, or mock fallback and may be delayed, incomplete, field-limited, or unavailable. Consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
-          : "Research Evidence Context is still an MVP. It does not include market evidence, consensus estimates, database persistence, saved share links, manual verification, PDF full-text parsing, or transcript full-text parsing.",
+          ? "Research Evidence Context is still an MVP. Third-party free market evidence may come from stock-api, global-stock-data, or mock fallback and may be delayed, incomplete, field-limited, or unavailable. Consensus estimates, manual verification, PDF full-text parsing, and transcript full-text parsing are not connected."
+          : "Research Evidence Context is still an MVP. It does not include market evidence, consensus estimates, manual verification, PDF full-text parsing, or transcript full-text parsing.",
     mvpLabel: "Research Evidence Context MVP",
   };
 }
@@ -153,7 +153,7 @@ function getMissingText(level: ResearchEvidenceLevel) {
   if (!parts.includes("Search")) missing.push("recent public web context");
   if (!parts.includes("SEC")) missing.push("SEC companyfacts / submissions");
   if (!parts.includes("IR")) missing.push("Company IR / earnings release evidence");
-  missing.push("database save", "manual verification");
+  missing.push("manual verification");
 
   return missing.join(", ");
 }

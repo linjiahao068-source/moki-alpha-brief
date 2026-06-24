@@ -43,10 +43,11 @@ function validateRootFields(brief: BriefDocument, issues: string[]) {
     !brief.secEvidencePack &&
     !brief.irEvidencePack &&
     !brief.marketEvidencePack &&
+    !brief.consensusEvidencePack &&
     !brief.researchEvidenceContext
   ) {
     issues.push(
-      "evidence-draft requires evidencePack, secEvidencePack, irEvidencePack, marketEvidencePack, or researchEvidenceContext",
+      "evidence-draft requires evidencePack, secEvidencePack, irEvidencePack, marketEvidencePack, consensusEvidencePack, or researchEvidenceContext",
     );
   }
 }
@@ -56,6 +57,7 @@ function validateCoreContent(brief: BriefDocument, issues: string[]) {
     issues.push("sections must be a non-empty array");
   } else {
     const ids = new Set<string>();
+
     for (const section of brief.sections) {
       if (!section.id) issues.push("section.id is required");
       if (typeof section.order !== "number") {
@@ -80,15 +82,12 @@ function validateCoreContent(brief: BriefDocument, issues: string[]) {
   if (!brief.scenarioAnalysis?.scenarios?.length) {
     issues.push("scenarioAnalysis.scenarios is required");
   }
-
   if (!brief.monitoringDashboard?.metrics?.length) {
     issues.push("monitoringDashboard.metrics is required");
   }
-
   if (!brief.sourceNote?.paragraphs?.length) {
     issues.push("sourceNote.paragraphs is required");
   }
-
   if (!brief.disclaimer?.text) {
     issues.push("disclaimer.text is required");
   }
@@ -145,20 +144,24 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     if (!brief.marketEvidencePack.sources?.length) {
       issues.push("marketEvidencePack.sources is required");
     }
-    if (brief.marketEvidencePack.quote) {
-      if (!brief.marketEvidencePack.quote.provider) {
-        issues.push("marketEvidencePack.quote.provider is required");
-      }
-      if (!brief.marketEvidencePack.quote.retrievedAt) {
-        issues.push("marketEvidencePack.quote.retrievedAt is required");
-      }
-      if (
-        !brief.marketEvidencePack.quote.marketTimestamp &&
-        brief.marketEvidencePack.quote.dateStatus !== "retrieved-only"
-      ) {
-        issues.push(
-          "marketEvidencePack.quote.dateStatus must be retrieved-only when marketTimestamp is missing",
-        );
+  }
+
+  if (brief.consensusEvidencePack) {
+    if (brief.consensusEvidencePack.dataMode !== "evidence-draft") {
+      issues.push("consensusEvidencePack.dataMode must be evidence-draft");
+    }
+    if (brief.consensusEvidencePack.provider !== "mock") {
+      issues.push("consensusEvidencePack.provider must be mock in this MVP");
+    }
+    if (!brief.consensusEvidencePack.estimates?.length) {
+      issues.push("consensusEvidencePack.estimates is required");
+    }
+    if (!brief.consensusEvidencePack.sources?.length) {
+      issues.push("consensusEvidencePack.sources is required");
+    }
+    for (const estimate of brief.consensusEvidencePack.estimates || []) {
+      if (estimate.sourceProvider !== "mock") {
+        issues.push("consensus estimates must use sourceProvider=mock in this MVP");
       }
     }
   }
@@ -179,33 +182,20 @@ function validateEvidenceShape(brief: BriefDocument, issues: string[]) {
     issues.push("researchEvidenceContext.coverage is required");
   }
 
-  if (
-    evidenceLevelIncludesSearch(context.evidenceLevel) &&
-    !brief.evidencePack &&
-    !context.searchEvidencePack
-  ) {
+  if (evidenceLevelIncludesSearch(context.evidenceLevel) && !brief.evidencePack && !context.searchEvidencePack) {
     issues.push(`${context.evidenceLevel} evidenceLevel requires search evidence`);
   }
-  if (
-    evidenceLevelIncludesSec(context.evidenceLevel) &&
-    !brief.secEvidencePack &&
-    !context.secEvidencePack
-  ) {
+  if (evidenceLevelIncludesSec(context.evidenceLevel) && !brief.secEvidencePack && !context.secEvidencePack) {
     issues.push(`${context.evidenceLevel} evidenceLevel requires SEC evidence`);
   }
-  if (
-    evidenceLevelIncludesIr(context.evidenceLevel) &&
-    !brief.irEvidencePack &&
-    !context.irEvidencePack
-  ) {
+  if (evidenceLevelIncludesIr(context.evidenceLevel) && !brief.irEvidencePack && !context.irEvidencePack) {
     issues.push(`${context.evidenceLevel} evidenceLevel requires IR evidence`);
   }
-  if (
-    evidenceLevelIncludesMarket(context.evidenceLevel) &&
-    !brief.marketEvidencePack &&
-    !context.marketEvidencePack
-  ) {
+  if (evidenceLevelIncludesMarket(context.evidenceLevel) && !brief.marketEvidencePack && !context.marketEvidencePack) {
     issues.push(`${context.evidenceLevel} evidenceLevel requires market evidence`);
+  }
+  if (evidenceLevelIncludesConsensus(context.evidenceLevel) && !brief.consensusEvidencePack && !context.consensusEvidencePack) {
+    issues.push(`${context.evidenceLevel} evidenceLevel requires consensus evidence`);
   }
 }
 
@@ -216,35 +206,43 @@ function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
   const hasIrEvidence = evidenceLevelIncludesIr(level) || Boolean(brief.irEvidencePack);
   const hasMarketEvidence =
     evidenceLevelIncludesMarket(level) || Boolean(brief.marketEvidencePack);
+  const hasConsensusEvidence =
+    evidenceLevelIncludesConsensus(level) || Boolean(brief.consensusEvidencePack);
 
-  if (/verified-real-data/i.test(text)) {
-    issues.push("brief text must not display verified-real-data");
+  if (hasForbiddenVerifiedRealDataClaim(text)) {
+    issues.push("brief text must not claim verified-real-data");
   }
 
-  if (
-    brief.researchEvidenceContext?.coverage.hasConsensus === false &&
-    claimsConsensusConnected(fullText)
-  ) {
+  if (!hasConsensusEvidence && claimsConsensusConnected(fullText)) {
     issues.push("brief must not claim consensus estimates are connected");
+  }
+  if (hasConsensusEvidence && claimsNoConsensusEvidence(text)) {
+    issues.push("sourceNote contradicts Consensus evidence by saying consensus is not connected");
+  }
+  if (hasConsensusEvidence && claimsConsensusAsSecActual(fullText)) {
+    issues.push("brief must not claim consensus evidence is SEC actual data");
+  }
+  if (hasConsensusEvidence && claimsNonConsensusProviderAsConsensus(fullText)) {
+    issues.push("brief must not write Search, IR, or Market numbers as consensus");
   }
 
   if (claimsFormalTargetOrRating(fullText)) {
     issues.push("brief must not output a formal rating or formal target price");
   }
 
-  if (
-    (level === "search-and-sec" ||
-      level === "search-sec-and-ir" ||
-      level === "search-sec-ir-and-market" ||
-      level === "search-sec-and-market" ||
-      level === "sec-ir-and-market" ||
-      level === "sec-and-market" ||
-      level === "sec-and-ir" ||
-      level === "sec-only" ||
-      brief.secEvidencePack) &&
-    claimsNoSec(text)
-  ) {
+  if ((evidenceLevelIncludesSec(level) || brief.secEvidencePack) && claimsNoSec(text)) {
     issues.push("sourceNote contradicts SEC evidence by saying SEC is not connected");
+  }
+  if (hasMarketEvidence && claimsNoMarketEvidence(text)) {
+    issues.push(
+      "sourceNote contradicts Market evidence by saying real-time market price or market evidence is not connected",
+    );
+  }
+  if (hasIrEvidence && claimsNoCompanyIr(text)) {
+    issues.push("sourceNote contradicts IR evidence by saying Company IR is not connected");
+  }
+  if (hasIrEvidence && treatsIrAsConsensus(text)) {
+    issues.push("brief text must not treat IR evidence or company guidance context as consensus");
   }
 
   if (
@@ -253,46 +251,30 @@ function validateEvidenceBoundaryText(brief: BriefDocument, issues: string[]) {
   ) {
     issues.push("sourceNote must mention Search + SEC Evidence Draft");
   }
-
   if (
     level === "search-sec-and-ir" &&
     !/search \+ sec \+ ir evidence draft|search.*sec.*ir evidence draft/i.test(text)
   ) {
     issues.push("sourceNote must mention Search + SEC + IR Evidence Draft");
   }
-
   if (
     level === "search-sec-ir-and-market" &&
     !/search \+ sec \+ ir \+ market evidence draft|search.*sec.*ir.*market evidence draft/i.test(text)
   ) {
     issues.push("sourceNote must mention Search + SEC + IR + Market Evidence Draft");
   }
-
-  if (hasMarketEvidence && claimsNoMarketEvidence(text)) {
-    issues.push(
-      "sourceNote contradicts Market evidence by saying real-time market price or market evidence is not connected",
-    );
-  }
-
-  if (hasIrEvidence && claimsNoCompanyIr(text)) {
-    issues.push("sourceNote contradicts IR evidence by saying Company IR is not connected");
-  }
-
-  if (hasIrEvidence && treatsIrAsConsensus(text)) {
-    issues.push("brief text must not treat IR evidence or company guidance context as consensus");
+  if (
+    level === "search-sec-ir-market-and-consensus" &&
+    !/search \+ sec \+ ir \+ market \+ consensus evidence draft|search.*sec.*ir.*market.*consensus evidence draft/i.test(text)
+  ) {
+    issues.push("sourceNote must mention Search + SEC + IR + Market + Consensus Evidence Draft");
   }
 
   if (
     brief.metadata?.dataMode === "evidence-draft" &&
-    !mentionsMissingMarketBoundaries(text, hasIrEvidence, hasMarketEvidence)
+    !mentionsDraftBoundaries(text, { hasConsensusEvidence, hasIrEvidence, hasMarketEvidence })
   ) {
-    issues.push(
-      hasMarketEvidence
-        ? "sourceNote must mention market evidence delay/incomplete caveat plus missing consensus, database, and manual verification coverage"
-        : hasIrEvidence
-          ? "sourceNote must mention missing real-time price, consensus, database, and manual verification coverage"
-          : "sourceNote must mention missing real-time price, consensus, company IR, and database coverage",
-    );
+    issues.push("sourceNote must mention the current evidence draft boundaries");
   }
 }
 
@@ -371,7 +353,7 @@ function claimsNoCompanyIr(text: string) {
 
 function claimsNoMarketEvidence(text: string) {
   const noMarketClaim =
-    /no real-time market price|without real-time market price|market evidence.*not connected|market price.*not connected|real-time market price.*not connected|未接实时股价|未接入实时股价/.test(
+    /no real-time market price|without real-time market price|market evidence.*not connected|market price.*not connected|real-time market price.*not connected|未接.{0,12}实时股价|实时股价.{0,12}未接/i.test(
       text,
     );
   if (!noMarketClaim) return false;
@@ -380,13 +362,26 @@ function claimsNoMarketEvidence(text: string) {
   );
 }
 
+function claimsNoConsensusEvidence(text: string) {
+  const noConsensusClaim =
+    /no consensus estimates|without consensus estimates|consensus evidence.*not connected|consensus estimates.*not connected|consensus not connected|未接.{0,12}一致预期|一致预期.{0,12}未接/i.test(
+      text,
+    );
+  if (!noConsensusClaim) return false;
+  return !/consensus evidence draft|consensusprovider|consensus provider=mock|consensus is mock evidence/i.test(
+    text,
+  );
+}
+
 function treatsIrAsConsensus(text: string) {
   const cleaned = text
-    .replace(/must not[^.]{0,220}consensus/gi, "")
-    .replace(/not[^.]{0,220}consensus/gi, "")
+    .replace(/must not[^.。]{0,220}consensus/gi, "")
+    .replace(/not[^.。]{0,220}consensus/gi, "")
+    .replace(/不能[^。]{0,120}一致预期/gi, "")
+    .replace(/不是[^。]{0,120}一致预期/gi, "")
     .replace(/no consensus estimates/gi, "");
 
-  return /(ir evidence|company guidance context|company guidance|management commentary)[^.。]{0,80}(consensus|consensus estimate|consensus forecast)/i.test(
+  return /(ir evidence|company guidance context|company guidance|management commentary)[^.。]{0,80}(is|are|as|treated as|written as|becomes|作为|写成|视为)[^.。]{0,80}(consensus|consensus estimate|consensus forecast|一致预期)/i.test(
     cleaned,
   );
 }
@@ -394,12 +389,51 @@ function treatsIrAsConsensus(text: string) {
 function claimsConsensusConnected(text: string) {
   const cleaned = text
     .replace(/no consensus estimates/gi, "")
-    .replace(/consensus[^.]{0,120}(not connected|missing|not available)/gi, "")
+    .replace(/consensus[^.。]{0,120}(not connected|missing|not available)/gi, "")
     .replace(/未接.{0,20}一致预期/gi, "");
 
   return /(consensus estimates? (are )?(connected|attached|available)|已接.{0,20}一致预期|一致预期.{0,20}(已接|已连接|可用))/i.test(
     cleaned,
   );
+}
+
+function claimsConsensusAsSecActual(text: string) {
+  const cleaned = text
+    .replace(/must not[^.。]{0,160}sec actual/gi, "")
+    .replace(/not[^.。]{0,120}sec actual/gi, "")
+    .replace(/not[^.。]{0,120}sec official/gi, "")
+    .replace(/cannot[^.。]{0,120}sec actual/gi, "")
+    .replace(/不得[^。]{0,120}sec/gi, "")
+    .replace(/不能[^。]{0,120}sec/gi, "")
+    .replace(/不是[^。]{0,60}sec/gi, "");
+
+  return /(consensus|一致预期)[^.。]{0,80}(\b(as|treated as|written as|becomes|from)\b|来自|作为|写成|视为|等同)[^.。]{0,80}(sec actual|sec official|official[- ]financial|companyfacts|官方披露|正式财报)/i.test(
+    cleaned,
+  );
+}
+
+function claimsNonConsensusProviderAsConsensus(text: string) {
+  const cleaned = text
+    .replace(/never[^.。]{0,160}consensus/gi, "")
+    .replace(/must not[^.。]{0,160}consensus/gi, "")
+    .replace(/not[^.。]{0,160}consensus/gi, "")
+    .replace(/不能[^。]{0,120}一致预期/gi, "")
+    .replace(/不是[^。]{0,120}一致预期/gi, "")
+    .replace(/不代表[^。]{0,120}一致预期/gi, "");
+
+  return /(search evidence|ir evidence|company guidance|market evidence|market price|搜索证据|公司指引|市场数据)[^.。]{0,80}(\b(as|treated as|written as|becomes|from)\b|来自|作为|写成|视为|等同)[^.。]{0,80}(consensus estimate|consensus|一致预期)/i.test(
+    cleaned,
+  );
+}
+
+function hasForbiddenVerifiedRealDataClaim(text: string) {
+  const cleaned = text
+    .replace(/not verified-real-data/gi, "")
+    .replace(/not\s+verified real data/gi, "")
+    .replace(/is not[^.。]{0,80}verified-real-data/gi, "")
+    .replace(/不是[^。]{0,80}verified-real-data/gi, "");
+
+  return /(^|[^a-z])verified-real-data/i.test(cleaned);
 }
 
 function claimsFormalTargetOrRating(text: string) {
@@ -415,36 +449,34 @@ function claimsFormalTargetOrRating(text: string) {
   );
 }
 
-function mentionsMissingMarketBoundaries(
+function mentionsDraftBoundaries(
   text: string,
-  hasIrEvidence: boolean,
-  hasMarketEvidence: boolean,
+  {
+    hasConsensusEvidence,
+    hasIrEvidence,
+    hasMarketEvidence,
+  }: {
+    hasConsensusEvidence: boolean;
+    hasIrEvidence: boolean;
+    hasMarketEvidence: boolean;
+  },
 ) {
-  if (hasMarketEvidence) {
-    return (
-      /(market evidence draft|marketprovider|third-party free market|free public market data|market data may be delayed|delayed or incomplete)/i.test(
+  const hasManualBoundary = /manual verification|人工校验|manual review/i.test(text);
+  const hasMarketBoundary = hasMarketEvidence
+    ? /(market evidence draft|marketprovider|third-party free market|free public market data|market data may be delayed|delayed or incomplete)/i.test(
         text,
-      ) &&
-      /(consensus|consensus estimates)/i.test(text) &&
-      /(database|database save)/i.test(text) &&
-      /(manual verification|人工校验|人工核验)/i.test(text)
-    );
-  }
+      )
+    : /(real-time price|market price|real-time market price)/i.test(text);
+  const hasConsensusBoundary = hasConsensusEvidence
+    ? /(consensus evidence draft|consensusprovider|consensus provider=mock|consensus is mock evidence)/i.test(
+        text,
+      )
+    : /(consensus|consensus estimates|一致预期)/i.test(text);
+  const hasIrBoundary = hasIrEvidence
+    ? /ir evidence draft|irprovider|company ir.*attached/i.test(text)
+    : /(company ir|ir evidence|company ir evidence)/i.test(text);
 
-  const hasCoreMissing =
-    /(real-time price|market price|real-time market price)/i.test(text) &&
-    /(consensus|consensus estimates)/i.test(text) &&
-    /(database|database save)/i.test(text);
-
-  if (!hasCoreMissing) return false;
-
-  if (hasIrEvidence) {
-    return /(manual verification|pdf full[- ]?text|transcript full[- ]?text)/i.test(
-      text,
-    );
-  }
-
-  return /(company ir|ir evidence|company ir evidence)/i.test(text);
+  return hasManualBoundary && hasMarketBoundary && hasConsensusBoundary && hasIrBoundary;
 }
 
 function evidenceLevelIncludesIr(level: string | undefined) {
@@ -461,4 +493,8 @@ function evidenceLevelIncludesSec(level: string | undefined) {
 
 function evidenceLevelIncludesMarket(level: string | undefined) {
   return Boolean(level && /market/i.test(level));
+}
+
+function evidenceLevelIncludesConsensus(level: string | undefined) {
+  return Boolean(level && /consensus/i.test(level));
 }

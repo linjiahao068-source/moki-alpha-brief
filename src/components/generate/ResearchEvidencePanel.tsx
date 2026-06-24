@@ -25,10 +25,12 @@ export function ResearchEvidencePanel({
     hasSecEvidence: context.coverage.hasSecEvidence,
     hasIrEvidence: context.coverage.hasCompanyIr,
     hasMarketEvidence: context.coverage.hasMarketPrice || Boolean(context.marketEvidencePack),
+    hasConsensusEvidence: context.coverage.hasConsensus,
     searchProvider: context.searchEvidencePack?.searchProvider,
     secProvider: context.secEvidencePack?.provider,
     irProvider: context.irEvidencePack?.provider,
     marketProvider: context.marketEvidencePack?.provider,
+    consensusProvider: context.consensusEvidencePack?.provider,
   });
   const combinedWarnings = Array.from(
     new Set([...(context.warnings || []), ...warnings].filter(Boolean)),
@@ -64,7 +66,10 @@ export function ResearchEvidencePanel({
         <Stat label="Market Volume" value={context.coverage.hasMarketVolume ? "yes" : "no"} />
         <Stat label="Market History" value={context.coverage.hasMarketPriceHistory ? "yes" : "no"} />
         <Stat label="Market Cap" value={context.coverage.hasMarketCap ? "yes" : "no"} />
-        <Stat label="Consensus" value="still missing" />
+        <Stat label="Consensus" value={context.coverage.hasConsensus ? "yes" : "no"} />
+        <Stat label="Revenue Consensus" value={context.coverage.hasRevenueConsensus ? "yes" : "no"} />
+        <Stat label="EPS Consensus" value={context.coverage.hasEpsConsensus ? "yes" : "no"} />
+        <Stat label="Analyst Count" value={context.coverage.hasAnalystCount ? "yes" : "no"} />
         <Stat label="Revenue Fact" value={context.coverage.hasRevenueFact ? "yes" : "no"} />
         <Stat label="Net Income Fact" value={context.coverage.hasNetIncomeFact ? "yes" : "no"} />
         <Stat label="EPS Fact" value={context.coverage.hasEpsFact ? "yes" : "no"} />
@@ -91,6 +96,8 @@ export function ResearchEvidencePanel({
           <SummaryRow label="SEC sources" value={String(context.secEvidencePack?.sources.length || 0)} />
           <SummaryRow label="IR sources" value={String(context.irEvidencePack?.sources.length || 0)} />
           <SummaryRow label="Market sources" value={String(context.marketEvidencePack?.sources.length || 0)} />
+          <SummaryRow label="Consensus sources" value={String(context.consensusEvidencePack?.sources.length || 0)} />
+          <SummaryRow label="Consensus estimates" value={String(context.consensusEvidencePack?.estimates.length || 0)} />
           <SummaryRow
             label="Market provider chain"
             value={context.marketEvidencePack?.providerChain?.join(" -> ") || "n/a"}
@@ -108,6 +115,10 @@ export function ResearchEvidencePanel({
           <SummaryRow label="Business update" value={String(factCounts["business-update"] || 0)} />
           <SummaryRow label="Market price" value={String(factCounts["market-price"] || 0)} />
           <SummaryRow label="Market history" value={String(factCounts["market-price-history"] || 0)} />
+          <SummaryRow label="Consensus revenue" value={String(factCounts["consensus-revenue"] || 0)} />
+          <SummaryRow label="Consensus EPS" value={String(factCounts["consensus-eps"] || 0)} />
+          <SummaryRow label="Consensus range" value={String(factCounts["consensus-range"] || 0)} />
+          <SummaryRow label="Analyst count" value={String(factCounts["analyst-count"] || 0)} />
         </SummaryBlock>
       </div>
 

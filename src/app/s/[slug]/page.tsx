@@ -2,12 +2,23 @@ import type { Metadata } from "next";
 import { briefMap } from "@/data/briefs";
 import { BriefNotFound } from "@/components/brief/BriefNotFound";
 import { BriefPage } from "@/components/brief/BriefPage";
-import { getBriefBySlug } from "@/lib/briefs/getBriefBySlug";
+import { SavedBriefMetaPanel } from "@/components/brief/SavedBriefMetaPanel";
+import { getBriefBySlug as getStaticBriefBySlug } from "@/lib/briefs/getBriefBySlug";
+import { getBriefBySlug as getSavedBriefBySlug } from "@/lib/storage/briefStore";
+import type { SavedBriefRecord } from "@/types/savedBrief";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type SharePageProps = {
   params: Promise<{
     slug: string;
   }>;
+};
+
+type SavedBriefLookup = {
+  error?: string;
+  savedBrief: SavedBriefRecord | null;
 };
 
 export function generateStaticParams() {
@@ -18,28 +29,80 @@ export async function generateMetadata({
   params,
 }: SharePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const brief = getBriefBySlug(slug);
+  const savedLookup = await readSavedBrief(slug);
+  const savedBrief = savedLookup.savedBrief;
 
-  if (!brief) {
+  if (savedBrief) {
     return {
-      title: "Moki Alpha Brief - Not Found",
-      description: "The requested public research brief could not be found.",
+      title: `Moki Alpha Brief - ${savedBrief.ticker}`,
+      description: "Saved Moki Alpha Brief evidence-draft share page.",
+    };
+  }
+
+  const staticBrief = getStaticDemoBrief(slug);
+
+  if (staticBrief) {
+    return {
+      title: `Moki Alpha Brief - ${staticBrief.metadata.ticker}`,
+      description: "Static Moki Alpha Brief demo page.",
     };
   }
 
   return {
-    title: "Moki Alpha Brief - NVDA Research Memo",
-    description: "Public buy-side style research memo demo for NVDA.",
+    title: "Moki Alpha Brief - Not Found",
+    description: "The requested public research brief could not be found.",
   };
 }
 
 export default async function SharePage({ params }: SharePageProps) {
   const { slug } = await params;
-  const brief = getBriefBySlug(slug);
+  const savedLookup = await readSavedBrief(slug);
 
-  if (!brief) {
-    return <BriefNotFound />;
+  if (savedLookup.savedBrief) {
+    return (
+      <BriefPage
+        brief={savedLookup.savedBrief.briefDocument}
+        shareMeta={<SavedBriefMetaPanel savedBrief={savedLookup.savedBrief} />}
+      />
+    );
   }
 
-  return <BriefPage brief={brief} />;
+  const staticBrief = getStaticDemoBrief(slug);
+
+  if (staticBrief) {
+    return <BriefPage brief={staticBrief} />;
+  }
+
+  if (savedLookup.error) {
+    return (
+      <BriefNotFound
+        badgeLabel="Storage Error"
+        detail="The page did not regenerate or fetch new evidence. Try again after storage is available, or check BRIEF_STORAGE_PROVIDER settings."
+        message={savedLookup.error}
+        title="Brief storage unavailable"
+      />
+    );
+  }
+
+  return <BriefNotFound />;
+}
+
+async function readSavedBrief(slug: string): Promise<SavedBriefLookup> {
+  try {
+    return {
+      savedBrief: await getSavedBriefBySlug(slug),
+    };
+  } catch (error) {
+    return {
+      savedBrief: null,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Brief storage read failed.",
+    };
+  }
+}
+
+function getStaticDemoBrief(slug: string) {
+  return slug.toLowerCase() === "nvda" ? getStaticBriefBySlug(slug) : undefined;
 }

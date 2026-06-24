@@ -43,9 +43,10 @@ export async function repairBriefJson({
           context
             ? `Keep evidenceLevel as ${context.evidenceLevel}.`
             : "No evidence context exists.",
-          "If evidenceLevel is search-and-sec, sourceNote must say Search + SEC Evidence Draft, include SEC CIK, recent filing count, fiscal fact count, search source count, and say no real-time price, no consensus estimates, no company IR narrative parsing, and no database save.",
+          "If evidenceLevel includes consensus, keep consensusEvidencePack and sourceNote must say Consensus provider=mock, consensus is mock evidence, dataMode=evidence-draft, not verified-real-data, not investment advice, and not SEC actual data.",
+          "If evidenceLevel is search-and-sec, sourceNote must say Search + SEC Evidence Draft, include SEC CIK, recent filing count, fiscal fact count, search source count, and say no real-time price, no consensus estimates, no company IR narrative parsing, and no manual verification.",
           "Never use verified-real-data.",
-          "Never claim real-time price or consensus estimates are connected.",
+          "Never claim real-time price or consensus estimates are connected unless the matching MarketEvidencePack or ConsensusEvidencePack exists in the supplied context.",
           "The repaired JSON must fit this schema:",
           briefJsonSchemaText,
           context

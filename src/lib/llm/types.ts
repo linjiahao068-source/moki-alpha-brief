@@ -1,5 +1,6 @@
 import type { BriefDocument, BriefLanguage } from "@/types/brief";
 import type {
+  ConsensusEvidencePack,
   EvidenceCoverageSummary,
   EvidencePack,
   IrEvidencePack,
@@ -22,10 +23,12 @@ export type GenerateBriefInput = {
   useSec?: boolean;
   useIr?: boolean;
   useMarket?: boolean;
+  useConsensus?: boolean;
   evidencePack?: EvidencePack;
   secEvidencePack?: SecEvidencePack;
   irEvidencePack?: IrEvidencePack;
   marketEvidencePack?: MarketEvidencePack;
+  consensusEvidencePack?: ConsensusEvidencePack;
   researchEvidenceContext?: ResearchEvidenceContext;
 };
 
@@ -56,6 +59,10 @@ export type GenerateBriefResult = {
   marketProviderChain?: MarketEvidencePack["providerChain"];
   marketAttemptedProviders?: MarketEvidencePack["attemptedProviders"];
   marketWarnings?: string[];
+  consensusProvider?: ConsensusEvidencePack["provider"];
+  consensusIsFallback?: boolean;
+  consensusProviderChain?: ConsensusEvidencePack["providerChain"];
+  consensusWarnings?: string[];
   researchEvidenceContext?: ResearchEvidenceContext;
   evidenceLevel?: ResearchEvidenceLevel;
   coverage?: EvidenceCoverageSummary;

@@ -145,7 +145,7 @@ export const mockMarketProvider: MarketProvider = {
         "Mock Market Evidence: market data is simulated and not a live quote.",
         "Free public market data source may be delayed or incomplete.",
         "Market evidence is for research context only, not official trading quote.",
-        "Consensus estimates are not connected.",
+        "Market evidence is not consensus evidence.",
       ],
     };
   },

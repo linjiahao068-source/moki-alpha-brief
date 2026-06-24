@@ -20,9 +20,9 @@ const MOCK_ESTIMATES: Record<
 > = {
   NVDA: [
     {
-      fiscalPeriod: "FY2026 Q2",
-      fiscalYear: 2026,
-      periodEnd: "2025-07-31",
+      fiscalPeriod: "FY2027 Q2",
+      fiscalYear: 2027,
+      periodEnd: "2026-07-31",
       revenueAvg: 45_900_000_000,
       revenueLow: 44_800_000_000,
       revenueHigh: 47_200_000_000,
@@ -33,9 +33,9 @@ const MOCK_ESTIMATES: Record<
       currency: "USD",
     },
     {
-      fiscalPeriod: "FY2026 Q3",
-      fiscalYear: 2026,
-      periodEnd: "2025-10-31",
+      fiscalPeriod: "FY2027 Q3",
+      fiscalYear: 2027,
+      periodEnd: "2026-10-31",
       revenueAvg: 49_200_000_000,
       revenueLow: 47_700_000_000,
       revenueHigh: 51_000_000_000,
@@ -48,9 +48,9 @@ const MOCK_ESTIMATES: Record<
   ],
   TSLA: [
     {
-      fiscalPeriod: "FY2025 Q2",
-      fiscalYear: 2025,
-      periodEnd: "2025-06-30",
+      fiscalPeriod: "FY2026 Q3",
+      fiscalYear: 2026,
+      periodEnd: "2026-09-30",
       revenueAvg: 25_800_000_000,
       revenueLow: 24_900_000_000,
       revenueHigh: 26_700_000_000,
@@ -60,12 +60,25 @@ const MOCK_ESTIMATES: Record<
       analystCount: 31,
       currency: "USD",
     },
+    {
+      fiscalPeriod: "FY2026 Q4",
+      fiscalYear: 2026,
+      periodEnd: "2026-12-31",
+      revenueAvg: 28_400_000_000,
+      revenueLow: 26_900_000_000,
+      revenueHigh: 30_100_000_000,
+      epsAvg: 0.61,
+      epsLow: 0.49,
+      epsHigh: 0.73,
+      analystCount: 29,
+      currency: "USD",
+    },
   ],
   ORCL: [
     {
-      fiscalPeriod: "FY2026 Q1",
-      fiscalYear: 2026,
-      periodEnd: "2025-08-31",
+      fiscalPeriod: "FY2027 Q1",
+      fiscalYear: 2027,
+      periodEnd: "2026-08-31",
       revenueAvg: 15_000_000_000,
       revenueLow: 14_600_000_000,
       revenueHigh: 15_500_000_000,
@@ -75,12 +88,25 @@ const MOCK_ESTIMATES: Record<
       analystCount: 27,
       currency: "USD",
     },
+    {
+      fiscalPeriod: "FY2027 Q2",
+      fiscalYear: 2027,
+      periodEnd: "2026-11-30",
+      revenueAvg: 16_200_000_000,
+      revenueLow: 15_700_000_000,
+      revenueHigh: 16_900_000_000,
+      epsAvg: 1.61,
+      epsLow: 1.53,
+      epsHigh: 1.69,
+      analystCount: 26,
+      currency: "USD",
+    },
   ],
   SNOW: [
     {
-      fiscalPeriod: "FY2026 Q2",
-      fiscalYear: 2026,
-      periodEnd: "2025-07-31",
+      fiscalPeriod: "FY2027 Q2",
+      fiscalYear: 2027,
+      periodEnd: "2026-07-31",
       revenueAvg: 1_030_000_000,
       revenueLow: 1_000_000_000,
       revenueHigh: 1_070_000_000,
@@ -90,12 +116,25 @@ const MOCK_ESTIMATES: Record<
       analystCount: 29,
       currency: "USD",
     },
+    {
+      fiscalPeriod: "FY2027 Q3",
+      fiscalYear: 2027,
+      periodEnd: "2026-10-31",
+      revenueAvg: 1_110_000_000,
+      revenueLow: 1_070_000_000,
+      revenueHigh: 1_160_000_000,
+      epsAvg: 0.25,
+      epsLow: 0.19,
+      epsHigh: 0.31,
+      analystCount: 28,
+      currency: "USD",
+    },
   ],
   MSFT: [
     {
-      fiscalPeriod: "FY2026 Q1",
-      fiscalYear: 2026,
-      periodEnd: "2025-09-30",
+      fiscalPeriod: "FY2027 Q1",
+      fiscalYear: 2027,
+      periodEnd: "2026-09-30",
       revenueAvg: 75_400_000_000,
       revenueLow: 73_900_000_000,
       revenueHigh: 77_200_000_000,
@@ -105,6 +144,19 @@ const MOCK_ESTIMATES: Record<
       analystCount: 41,
       currency: "USD",
     },
+    {
+      fiscalPeriod: "FY2027 Q2",
+      fiscalYear: 2027,
+      periodEnd: "2026-12-31",
+      revenueAvg: 79_600_000_000,
+      revenueLow: 77_800_000_000,
+      revenueHigh: 81_500_000_000,
+      epsAvg: 3.88,
+      epsLow: 3.72,
+      epsHigh: 4.05,
+      analystCount: 40,
+      currency: "USD",
+    },
   ],
 };
 
@@ -112,10 +164,11 @@ export const mockConsensusProvider: ConsensusProvider = {
   async fetchConsensusEvidence(input, config) {
     const ticker = normalizeConsensusTicker(input.ticker);
     const retrievedAt = formatCstTimestamp();
+    const maxRows = Math.min(4, Math.max(2, config.maxPeriods));
     const rows =
       MOCK_ESTIMATES[ticker] ||
-      buildGenericEstimateRows(ticker, input.companyName, config.maxPeriods);
-    const estimates = rows.slice(0, config.maxPeriods).map((row, index) => ({
+      buildGenericEstimateRows(ticker, input.companyName, maxRows);
+    const estimates = rows.slice(0, maxRows).map((row, index) => ({
       id: `consensus-mock-${ticker.toLowerCase()}-${index + 1}`,
       fiscalPeriod: row.fiscalPeriod,
       fiscalYear: row.fiscalYear,
@@ -151,10 +204,10 @@ export const mockConsensusProvider: ConsensusProvider = {
       estimates,
       sources: [source],
       warnings: [
-        "Mock Consensus Evidence: analyst estimates are simulated and not real provider data.",
-        "Consensus data may be delayed or incomplete.",
-        "Provider access may depend on API plan.",
-        "Consensus evidence is not SEC data or market price data.",
+        "Consensus estimates are mock evidence in this MVP.",
+        "Consensus evidence is not SEC actual data.",
+        "Consensus evidence is not market price data.",
+        "Consensus evidence is not verified-real-data.",
       ],
     };
   },
@@ -166,17 +219,19 @@ function buildGenericEstimateRows(
   count: number,
 ) {
   void companyName;
+  const rowCount = Math.min(4, Math.max(2, count));
   const baseRevenue = ticker.endsWith(".HK") ? 20_000_000_000 : 5_000_000_000;
 
-  return Array.from({ length: Math.max(1, count) }, (_, index) => {
-    const quarter = index + 1;
+  return Array.from({ length: rowCount }, (_, index) => {
+    const quarter = ((index + 2) % 4) + 1;
+    const fiscalYear = index < 2 ? 2026 : 2027;
     const revenueAvg = baseRevenue * (1 + index * 0.06);
     const epsAvg = 1 + index * 0.04;
 
     return {
-      fiscalPeriod: `FY2026 Q${quarter}`,
-      fiscalYear: 2026,
-      periodEnd: `2026-${String(quarter * 3).padStart(2, "0")}-30`,
+      fiscalPeriod: `FY${fiscalYear} Q${quarter}`,
+      fiscalYear,
+      periodEnd: `${fiscalYear}-${String(quarter * 3).padStart(2, "0")}-30`,
       revenueAvg: round(revenueAvg, 0),
       revenueLow: round(revenueAvg * 0.94, 0),
       revenueHigh: round(revenueAvg * 1.06, 0),

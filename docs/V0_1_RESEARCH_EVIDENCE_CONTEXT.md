@@ -4,7 +4,7 @@
 
 Phase 9.3 merges Search Evidence Pack and SEC Evidence Pack into a unified `ResearchEvidenceContext`. The goal is not to add a new external data source. The goal is to keep source classes, factual claims, missing coverage, and prompt usage rules separate and auditable.
 
-Current scope still excludes real-time market price, consensus estimates, company IR narrative parsing, database persistence, and saved public share pages.
+The current Phase 10.0.1 scope includes Search, SEC, Company IR, Market, mock Consensus Evidence, and saved public share pages. It still excludes manual verification, login, editing, history versions, PDF full-text parsing, transcript full-text parsing, and real FMP / Finnhub consensus providers.
 
 ## Why This Layer Exists
 
@@ -174,7 +174,63 @@ New fact ledger types:
 
 Market evidence is third-party free quote / volume / recent daily kline context only. It is not SEC official-financial data, not consensus, not a formal trading quote, not a trading signal, and not verified-real-data.
 
-Consensus estimates, database save, saved share links, and manual verification remain missing.
+Consensus estimates, database-style history, login, permissions, and manual verification remain missing.
+
+## Phase 10.0.1 Consensus Evidence Backfill
+
+Phase 10.0.1 adds mock Consensus Evidence to the existing Research Evidence Context after the Phase 10 save/share MVP.
+
+New context field:
+
+- `consensusEvidencePack`
+
+New evidence levels include:
+
+- `consensus-only`
+- `market-and-consensus`
+- `search-sec-ir-market-and-consensus`
+
+New coverage flags:
+
+- `hasConsensus`
+- `hasRevenueConsensus`
+- `hasEpsConsensus`
+- `hasAnalystCount`
+
+New fact ledger types:
+
+- `consensus-revenue`
+- `consensus-eps`
+- `consensus-range`
+- `analyst-count`
+
+Consensus Evidence is mock-only in this phase. It is not SEC actual data, not market price data, not verified-real-data, not a formal rating, not a formal target price, and not investment advice. Search, IR, and Market numbers must not be rewritten as consensus estimates.
+
+Saved share pages keep consensus evidence inside the saved `BriefDocument`; they do not rebuild the context or fetch consensus again.
+
+See: `docs/V0_1_CONSENSUS_ESTIMATES_BACKFILL.md`.
+
+## Phase 10 Saved Brief Share Update
+
+Phase 10 adds saved share links without changing the `ResearchEvidenceContext` evidence model.
+
+The generation path still builds Search, SEC, IR, Market, and Consensus evidence before the `BriefDocument` is created. The save path only persists the already rendered `BriefDocument` and compact metadata.
+
+Saved share pages:
+
+- read `SavedBriefRecord` from storage;
+- render `savedBrief.briefDocument`;
+- show `evidenceLevel`, `dataMode=evidence-draft`, source counts, warnings, disclaimer, and compact evidence summary;
+- do not call LLM providers;
+- do not call Search, SEC, IR, Market, or Consensus providers;
+- do not rebuild `ResearchEvidenceContext`;
+- do not display raw provider responses, raw model output, raw JSON, or `reasoning_content`.
+
+`dataMode` remains `evidence-draft`; `verified-real-data` remains forbidden.
+
+Database-style history, permissions, login, editing, regeneration, manual verification, SEO, and OG image generation remain out of scope.
+
+See: `docs/V0_1_SAVED_BRIEF_SHARE_MVP.md`.
 
 See: `docs/V0_1_MARKET_DATA_MVP.md`.
 
@@ -202,4 +258,4 @@ stock-api -> global-stock-data -> mock
 
 `marketEvidencePack.provider` records the final successful provider, while `providerChain` and `attemptedProviders` may record the configured chain and attempted providers. Market evidence remains third-party free market context only. It is not a formal trading quote, not consensus, not SEC official-financial data, not a formal rating, not a formal target price, and not verified-real-data.
 
-Consensus estimates, database save, saved share links, and manual verification remain missing.
+Consensus estimates, database-style history, login, permissions, and manual verification remain missing.
