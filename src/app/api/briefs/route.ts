@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       warnings: mergeWarnings(body.warnings, validationWarnings),
       disclaimer: body.disclaimer,
     });
-    const shareUrl = getBriefShareUrl(savedBrief.slug);
+    const shareUrl = getBriefShareUrl(savedBrief.slug, getRequestBaseUrl(request));
 
     return NextResponse.json({
       ok: true,
@@ -162,8 +162,8 @@ function containsVerifiedRealData(value: unknown): boolean {
     const cleaned = value
       .replace(/not verified-real-data/gi, "")
       .replace(/not\s+verified real data/gi, "")
-      .replace(/is not[^.。]{0,80}verified-real-data/gi, "")
-      .replace(/不是[^。]{0,80}verified-real-data/gi, "");
+      .replace(/is not.{0,80}verified-real-data/gi, "")
+      .replace(/is not.{0,80}verified real data/gi, "");
 
     return /verified-real-data/i.test(cleaned);
   }
@@ -183,4 +183,24 @@ function containsVerifiedRealData(value: unknown): boolean {
 
     return containsVerifiedRealData(childValue);
   });
+}
+
+function getRequestBaseUrl(request: Request) {
+  const origin = request.headers.get("origin");
+  if (origin) return origin;
+
+  const forwardedHost =
+    request.headers.get("x-forwarded-host") || request.headers.get("host");
+
+  if (!forwardedHost) return undefined;
+
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto || (isLocalHost(forwardedHost) ? "http" : "https");
+
+  return `${protocol}://${forwardedHost}`;
+}
+
+function isLocalHost(host: string) {
+  const normalized = host.toLowerCase();
+  return normalized.includes("localhost") || normalized.includes("127.0.0.1");
 }

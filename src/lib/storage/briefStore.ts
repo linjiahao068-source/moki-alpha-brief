@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { SavedBriefRecord } from "@/types/savedBrief";
-import { BriefStorageConfigError, getBriefStorageConfig } from "./config";
+import {
+  BriefStorageConfigError,
+  getBriefStorageConfig,
+  normalizeShareBaseUrl,
+} from "./config";
 import { memoryBriefStore } from "./providers/memoryBriefStore";
 import { upstashBriefStore } from "./providers/upstashBriefStore";
 import { normalizeBriefSlug } from "./slug";
@@ -38,9 +42,11 @@ export async function getBriefBySlug(
   }
 }
 
-export function getBriefShareUrl(slug: string) {
-  const config = getBriefStorageConfig();
-  return `${config.shareBaseUrl}/s/${normalizeBriefSlug(slug)}`;
+export function getBriefShareUrl(slug: string, requestBaseUrl?: string) {
+  const shareBaseUrl = requestBaseUrl
+    ? normalizeShareBaseUrl(requestBaseUrl)
+    : getBriefStorageConfig().shareBaseUrl;
+  return `${shareBaseUrl}/s/${normalizeBriefSlug(slug)}`;
 }
 
 function getActiveBriefStore(): BriefStore {
