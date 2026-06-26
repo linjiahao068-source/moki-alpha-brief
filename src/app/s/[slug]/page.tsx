@@ -35,7 +35,7 @@ export async function generateMetadata({
   if (savedBrief) {
     return {
       title: `Moki Alpha Brief - ${savedBrief.ticker}`,
-      description: "Saved Moki Alpha Brief evidence-draft share page.",
+      description: "Saved Moki Alpha Brief public research page.",
     };
   }
 
@@ -44,7 +44,7 @@ export async function generateMetadata({
   if (staticBrief) {
     return {
       title: `Moki Alpha Brief - ${staticBrief.metadata.ticker}`,
-      description: "Static Moki Alpha Brief demo page.",
+      description: "Moki Alpha Brief public research page.",
     };
   }
 
@@ -77,9 +77,9 @@ export default async function SharePage({ params }: SharePageProps) {
     return (
       <BriefNotFound
         badgeLabel="Storage Error"
-        detail="The page did not regenerate or fetch new evidence. Try again after storage is available, or check BRIEF_STORAGE_PROVIDER settings."
+        detail="The page did not regenerate or fetch new data. Please try again after storage is available."
         message={savedLookup.error}
-        title="Brief storage unavailable"
+        title="Brief storage needs attention"
       />
     );
   }

@@ -38,7 +38,7 @@ export function BriefContent({ brief }: BriefContentProps) {
             Research Memo
           </p>
           <h1 className="mt-3 text-2xl font-semibold leading-tight text-[var(--foreground)] sm:text-[30px]">
-            {brief.metadata.title}
+            {formatPublicText(brief.metadata.title)}
           </h1>
         </header>
 
@@ -119,8 +119,10 @@ function ExecutiveView({ section }: { section: BriefSection }) {
                   : undefined
               }
             >
-              {callout.title ? <strong>{callout.title}: </strong> : null}
-              {callout.content}
+              {callout.title ? (
+                <strong>{formatPublicText(callout.title)}: </strong>
+              ) : null}
+              {formatPublicText(callout.content)}
             </p>
           );
         })}
@@ -144,7 +146,7 @@ function MemoSection({ section }: { section: BriefSection }) {
 
 function ContentBlock({ block }: { block: BriefContentBlock }) {
   if (block.type === "paragraph") {
-    return <p>{block.content}</p>;
+    return <p>{formatPublicText(block.content)}</p>;
   }
 
   if (block.type === "bulletList") {
@@ -154,7 +156,7 @@ function ContentBlock({ block }: { block: BriefContentBlock }) {
           <li key={item} className="flex gap-3 text-[15px] leading-7">
             <span className="mt-3 size-1.5 shrink-0 rounded-full bg-[var(--brand-dot)]" />
             <span className="min-w-0 text-[var(--foreground)] opacity-85">
-              {item}
+              {formatPublicText(item)}
             </span>
           </li>
         ))}
@@ -166,7 +168,7 @@ function ContentBlock({ block }: { block: BriefContentBlock }) {
     return (
       <ol className="mt-5 list-decimal space-y-3 pl-5">
         {block.items.map((item) => (
-          <li key={item}>{item}</li>
+          <li key={item}>{formatPublicText(item)}</li>
         ))}
       </ol>
     );
@@ -178,8 +180,8 @@ function ContentBlock({ block }: { block: BriefContentBlock }) {
 
   return (
     <p className="rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-4">
-      {block.title ? <strong>{block.title}: </strong> : null}
-      {block.content}
+      {block.title ? <strong>{formatPublicText(block.title)}: </strong> : null}
+      {formatPublicText(block.content)}
     </p>
   );
 }
@@ -200,16 +202,16 @@ function RiskSection({ section }: { section: BriefSection }) {
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-base font-semibold text-[var(--risk-ink)]">
-                {risk.title}
+                {formatPublicText(risk.title)}
               </h3>
               {risk.label ? (
                 <span className="max-w-full w-fit rounded-full border border-[var(--risk-border)] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--risk-ink)]">
-                  {risk.label}
+                  {formatPublicText(risk.label)}
                 </span>
               ) : null}
             </div>
             <p className="mt-3 text-[15px] leading-7 text-[var(--risk-ink)]">
-              {risk.content}
+              {formatPublicText(risk.content)}
             </p>
           </div>
         ))}
@@ -233,7 +235,7 @@ function BottomLine({ section }: { section: BriefSection }) {
             key={block.content}
             className="text-[15px] leading-8 text-[var(--foreground)]"
           >
-            {block.content}
+            {formatPublicText(block.content)}
           </p>
         ))}
       </div>
@@ -264,14 +266,14 @@ function MetricGrid({
               brand ? "text-[var(--brand-ink)]" : "text-[var(--foreground)]"
             }`}
           >
-            {metric.label}
+            {formatPublicText(metric.label)}
           </p>
           <p className="mt-2 font-mono text-lg font-semibold text-[var(--foreground)]">
-            {metric.value}
+            {formatPublicText(metric.value)}
           </p>
           {metric.detail ? (
             <p className="mt-2 text-sm leading-6 text-[var(--foreground)] opacity-75">
-              {metric.detail}
+              {formatPublicText(metric.detail)}
             </p>
           ) : null}
         </div>
@@ -289,13 +291,28 @@ function SectionHeading({ section }: { section: BriefSection }) {
       <div className="min-w-0">
         {section.eyebrow ? (
           <p className="text-xs font-medium leading-5 text-[var(--foreground)] opacity-60">
-            {section.eyebrow}
+            {formatPublicText(section.eyebrow)}
           </p>
         ) : null}
         <h2 className="text-[15px] font-semibold leading-6 text-[var(--foreground)]">
-          {section.title}
+          {formatPublicText(section.title)}
         </h2>
       </div>
     </div>
   );
 }
+
+function formatPublicText(value: string | undefined) {
+  if (!value) return "";
+
+  return value
+    .replace(/Evidence Draft/gi, "Sources Attached")
+    .replace(/LLM Demo/gi, "AI Generated")
+    .replace(/Mock Consensus Evidence/gi, "Consensus Estimate Context")
+    .replace(/mock consensus evidence/gi, "consensus estimate context")
+    .replace(/mock evidence/gi, "estimate context")
+    .replace(/mock-only/gi, "estimate-context")
+    .replace(/MVP/gi, "Current Version")
+    .replace(/BriefDocument/gi, "research brief")
+    .replace(/verified-real-data/gi, "verified data");
+}

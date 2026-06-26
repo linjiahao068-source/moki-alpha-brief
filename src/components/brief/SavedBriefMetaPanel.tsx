@@ -6,83 +6,43 @@ type SavedBriefMetaPanelProps = {
 };
 
 export function SavedBriefMetaPanel({ savedBrief }: SavedBriefMetaPanelProps) {
-  const summaryItems = getEvidenceSummaryItems(savedBrief.evidenceSummary);
-  const sourceCountItems = getObjectEntries(savedBrief.sourceCounts).slice(0, 12);
-  const warnings = savedBrief.warnings?.slice(0, 5) || [];
+  const sourceItems = getSourceItems(savedBrief);
 
   return (
     <section className="rounded-[8px] border border-[var(--border)] bg-white p-4 shadow-[0_12px_40px_-32px_rgba(0,0,0,0.28)] sm:p-5">
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground)] opacity-60">
-            Saved Brief
+            Public Research Brief
           </p>
           <h2 className="mt-1 text-base font-semibold leading-6 text-[var(--foreground)]">
             {savedBrief.ticker} / {savedBrief.title}
           </h2>
         </div>
         <div className="flex min-w-0 flex-wrap gap-2 text-xs font-semibold leading-5">
-          <Pill>{savedBrief.dataMode}</Pill>
-          <Pill>{savedBrief.evidenceLevel}</Pill>
-          {savedBrief.isFallback ? <Pill tone="risk">Fallback</Pill> : null}
+          <Pill tone="brand">Unlisted Share Page</Pill>
+          {savedBrief.isFallback ? <Pill tone="risk">Fallback Result</Pill> : null}
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 text-sm leading-6 sm:grid-cols-2 lg:grid-cols-4">
-        <MetaItem label="Saved At" value={savedBrief.createdAt} mono />
+        <MetaItem label="Generated At" value={savedBrief.createdAt} mono />
         <MetaItem label="Updated At" value={savedBrief.updatedAt} mono />
         <MetaItem label="Ticker" value={savedBrief.ticker} mono />
         <MetaItem label="Company" value={savedBrief.companyName || "n/a"} />
-        <MetaItem
-          label="Model Provider"
-          value={savedBrief.modelProvider || "n/a"}
-          mono
-        />
         <MetaItem label="Model" value={savedBrief.modelName || "n/a"} mono />
-        <MetaItem
-          label="Schema"
-          value={savedBrief.schemaVersion || "n/a"}
-          mono
-        />
-        <MetaItem label="Record ID" value={savedBrief.id} mono />
       </div>
 
-      {sourceCountItems.length ? (
+      {sourceItems.length ? (
         <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-3">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-60">
-            Source Counts
+            Data Used in This Brief
           </p>
-          <div className="mt-3 grid gap-2 text-sm leading-6 sm:grid-cols-2 lg:grid-cols-4">
-            {sourceCountItems.map(([key, value]) => (
-              <MetaItem key={key} label={formatLabel(key)} value={String(value)} mono />
+          <div className="mt-3 grid gap-2 text-sm leading-6 sm:grid-cols-2 lg:grid-cols-5">
+            {sourceItems.map((item) => (
+              <MetaItem key={item.label} label={item.label} value={item.value} mono />
             ))}
           </div>
-        </div>
-      ) : null}
-
-      {summaryItems.length ? (
-        <div className="mt-4 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] p-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-ink)] opacity-75">
-            Evidence Summary
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {summaryItems.map(([key, value]) => (
-              <Pill key={key} tone={value === true ? "brand" : "neutral"}>
-                {formatLabel(key)}: {formatSummaryValue(value)}
-              </Pill>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {warnings.length ? (
-        <div className="mt-4 rounded-[8px] border border-[var(--risk-border)] bg-[var(--risk-soft)] p-3 text-sm leading-6 text-[var(--risk-ink)]">
-          <p className="font-semibold">Warnings</p>
-          <ul className="mt-2 space-y-1">
-            {warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
         </div>
       ) : null}
 
@@ -139,29 +99,50 @@ function Pill({
   );
 }
 
-function getObjectEntries(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+function getSourceItems(savedBrief: SavedBriefRecord) {
+  const counts = getCountMap(savedBrief.sourceCounts);
+  const brief = savedBrief.briefDocument;
 
-  return Object.entries(value).filter(([, item]) =>
-    ["string", "number", "boolean"].includes(typeof item),
+  return [
+    getSourceItem(
+      "Web Search",
+      counts.searchSources || counts.searchItems || brief.evidencePack?.sources?.length,
+    ),
+    getSourceItem(
+      "SEC Filings",
+      counts.secSources || brief.secEvidencePack?.sources?.length,
+    ),
+    getSourceItem(
+      "Company IR",
+      counts.irSources || counts.irItems || brief.irEvidencePack?.irItems?.length,
+    ),
+    getSourceItem(
+      "Market Data",
+      counts.marketSources || brief.marketEvidencePack?.sources?.length,
+    ),
+    getSourceItem(
+      "Consensus Estimates",
+      counts.consensusSources ||
+        counts.consensusEstimates ||
+        brief.consensusEvidencePack?.estimates?.length,
+    ),
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+}
+
+function getSourceItem(label: string, count?: number) {
+  if (!count) return null;
+  return {
+    label,
+    value: count === 1 ? "Used" : `${count} items`,
+  };
+}
+
+function getCountMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, item]) => typeof item === "number")
+      .map(([key, item]) => [key, item as number]),
   );
-}
-
-function getEvidenceSummaryItems(value: unknown) {
-  return getObjectEntries(value)
-    .filter(([key]) => key.startsWith("has"))
-    .slice(0, 14);
-}
-
-function formatLabel(value: string) {
-  return value
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[_-]+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatSummaryValue(value: unknown) {
-  if (typeof value === "boolean") return value ? "yes" : "no";
-  return String(value);
-}
+}

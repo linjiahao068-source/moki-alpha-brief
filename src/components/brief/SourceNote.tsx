@@ -1,4 +1,3 @@
-import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { BriefDataMode, SourceNoteData } from "@/types/brief";
 import type {
   ResearchEvidenceLevel,
@@ -27,32 +26,19 @@ type SourceNoteProps = {
 
 export function SourceNote({
   sourceNote,
-  dataMode,
-  evidenceLevel,
   hasEvidencePack,
   hasSecEvidencePack = false,
   hasIrEvidencePack = false,
   hasMarketEvidencePack = false,
   hasConsensusEvidencePack = false,
-  searchProvider,
-  secProvider,
-  irProvider,
-  marketProvider,
-  consensusProvider,
 }: SourceNoteProps) {
-  const evidenceState = getEvidenceStatusCopy({
-    evidenceLevel,
-    hasSearchEvidence: hasEvidencePack,
-    hasSecEvidence: hasSecEvidencePack,
-    hasIrEvidence: hasIrEvidencePack,
-    hasMarketEvidence: hasMarketEvidencePack,
-    hasConsensusEvidence: hasConsensusEvidencePack,
-    searchProvider,
-    secProvider,
-    irProvider,
-    marketProvider,
-    consensusProvider,
-  });
+  const sourceItems = [
+    hasEvidencePack ? "Web Search" : "",
+    hasSecEvidencePack ? "SEC Filings" : "",
+    hasIrEvidencePack ? "Company IR" : "",
+    hasMarketEvidencePack ? "Market Data" : "",
+    hasConsensusEvidencePack ? "Consensus Estimates" : "",
+  ].filter(Boolean);
 
   return (
     <section
@@ -61,17 +47,38 @@ export function SourceNote({
     >
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground)] opacity-60">
-          {sourceNote.title}
+          Sources & Method
         </p>
-        <span className="inline-flex w-fit max-w-full rounded-full border border-[var(--border)] bg-white px-3 py-1 font-mono text-xs font-semibold leading-5 text-[var(--foreground)] opacity-75">
-          {dataMode} / {evidenceState.label}
+        <span className="inline-flex w-fit max-w-full rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs font-semibold leading-5 text-[var(--foreground)] opacity-75">
+          {sourceItems.length ? "Sources attached" : "No external sources selected"}
         </span>
       </div>
+
+      {sourceItems.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {sourceItems.map((item) => (
+            <span
+              key={item}
+              className="inline-flex max-w-full rounded-full border border-[var(--brand-border)] bg-white px-3 py-1 text-xs font-semibold leading-5 text-[var(--brand-ink)]"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-3 space-y-3 text-[15px] leading-7 text-[var(--foreground)] opacity-85">
-        {sourceNote.paragraphs.map((paragraph) => (
-          <p key={paragraph}>{paragraph}</p>
-        ))}
+        <p>
+          This brief may use SEC filings, company IR or earnings-release
+          materials, public web search results, market data where available, and
+          consensus estimate context when selected.
+        </p>
+        <p>
+          The analysis is AI-generated and should be treated as research support,
+          not investment advice. Important facts, prices, and estimates should be
+          independently verified before use.
+        </p>
       </div>
     </section>
   );
-}
+}

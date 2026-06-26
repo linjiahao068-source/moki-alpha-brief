@@ -1,59 +1,32 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { DataBoundaryNote } from "@/components/brief/DataBoundaryNote";
-import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { DeepSeekModelMode } from "@/lib/llm/types";
 import type { BriefDocument } from "@/types/brief";
-import type {
-  ConsensusEvidencePack,
-  EvidenceCoverageSummary,
-  ResearchEvidenceContext,
-  ResearchEvidenceLevel,
-} from "@/types/evidence";
-import { ConsensusEvidencePanel } from "./ConsensusEvidencePanel";
 import { GeneratedBriefPreview } from "./GeneratedBriefPreview";
-import { IrEvidencePanel } from "./IrEvidencePanel";
-import { MarketEvidencePanel } from "./MarketEvidencePanel";
-import { ResearchEvidencePanel } from "./ResearchEvidencePanel";
-import { SecEvidencePanel } from "./SecEvidencePanel";
-import { SourceEvidenceList } from "./SourceEvidenceList";
 
 type GenerateApiResult = {
   ok: boolean;
   brief?: BriefDocument;
-  issues?: string[];
-  qualityWarnings?: string[];
   error?: string;
   provider: "mock" | "deepseek";
   model?: string;
   modelMode?: DeepSeekModelMode;
   isFallback?: boolean;
   searchProvider?: "mock" | "tavily";
-  searchIsFallback?: boolean;
-  searchWarnings?: string[];
   secProvider?: "mock" | "sec";
-  secIsFallback?: boolean;
-  secWarnings?: string[];
-  cik?: string;
   irProvider?: "mock" | "search";
-  irIsFallback?: boolean;
-  irWarnings?: string[];
   marketProvider?: "mock" | "stock-api" | "global-stock-data";
-  marketIsFallback?: boolean;
-  marketProviderChain?: Array<"mock" | "stock-api" | "global-stock-data">;
-  marketAttemptedProviders?: Array<"mock" | "stock-api" | "global-stock-data">;
-  marketWarnings?: string[];
   consensusProvider?: "mock";
-  consensusIsFallback?: boolean;
-  consensusProviderChain?: Array<"mock">;
-  consensusWarnings?: string[];
-  researchEvidenceContext?: ResearchEvidenceContext;
-  evidenceLevel?: ResearchEvidenceLevel;
-  coverage?: EvidenceCoverageSummary;
-  evidenceWarnings?: string[];
   jsonRepairStatus?: "not-needed" | "attempted" | "succeeded" | "failed";
   jsonRepairSucceeded?: boolean;
+};
+
+type DataSourceItem = {
+  label: string;
+  status: string;
+  description: string;
+  isUsed: boolean;
 };
 
 export function GenerateBriefForm() {
@@ -69,73 +42,7 @@ export function GenerateBriefForm() {
   const [result, setResult] = useState<GenerateApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const researchEvidenceContext = useMemo(
-    () => result?.researchEvidenceContext || result?.brief?.researchEvidenceContext,
-    [result],
-  );
-  const coverage = result?.coverage || result?.brief?.evidenceSummary;
-  const evidenceLevel =
-    result?.evidenceLevel || researchEvidenceContext?.evidenceLevel;
-  const evidenceStatus = useMemo(
-    () =>
-      getEvidenceStatusCopy({
-        evidenceLevel,
-        hasSearchEvidence: Boolean(result?.brief?.evidencePack),
-        hasSecEvidence: Boolean(result?.brief?.secEvidencePack),
-        hasIrEvidence: Boolean(result?.brief?.irEvidencePack),
-        hasMarketEvidence: Boolean(result?.brief?.marketEvidencePack),
-        hasConsensusEvidence: Boolean(result?.brief?.consensusEvidencePack),
-        searchProvider:
-          result?.searchProvider || result?.brief?.evidencePack?.searchProvider,
-        secProvider:
-          result?.secProvider || result?.brief?.secEvidencePack?.provider,
-        irProvider: result?.irProvider || result?.brief?.irEvidencePack?.provider,
-        marketProvider:
-          result?.marketProvider || result?.brief?.marketEvidencePack?.provider,
-        consensusProvider:
-          result?.consensusProvider || result?.brief?.consensusEvidencePack?.provider,
-      }),
-    [evidenceLevel, result],
-  );
-  const issueList = useMemo(
-    () => (result?.issues || []).filter(Boolean),
-    [result],
-  );
-  const qualityWarningList = useMemo(
-    () => (result?.qualityWarnings || []).filter(Boolean),
-    [result],
-  );
-  const searchWarningList = useMemo(
-    () => (result?.searchWarnings || []).filter(Boolean),
-    [result],
-  );
-  const secWarningList = useMemo(
-    () => (result?.secWarnings || []).filter(Boolean),
-    [result],
-  );
-  const irWarningList = useMemo(
-    () => (result?.irWarnings || []).filter(Boolean),
-    [result],
-  );
-  const marketWarningList = useMemo(
-    () => (result?.marketWarnings || []).filter(Boolean),
-    [result],
-  );
-  const consensusWarningList = useMemo(
-    () => (result?.consensusWarnings || []).filter(Boolean),
-    [result],
-  );
-  const evidenceStats = useMemo(
-    () => getEvidenceStats(result?.brief),
-    [result],
-  );
-  const secStats = useMemo(() => getSecStats(result?.brief), [result]);
-  const irStats = useMemo(() => getIrStats(result?.brief), [result]);
-  const marketStats = useMemo(() => getMarketStats(result?.brief), [result]);
-  const consensusStats = useMemo(
-    () => getConsensusStats(result?.brief?.consensusEvidencePack),
-    [result],
-  );
+  const sourceItems = useMemo(() => getDataSourceItems(result), [result]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -163,10 +70,10 @@ export function GenerateBriefForm() {
 
       setResult(payload);
       if (!response.ok || !payload.ok) {
-        setError(payload.error || "Brief generation failed.");
+        setError(payload.error || "Research brief generation failed.");
       }
     } catch {
-      setError("Network error while calling /api/generate-brief.");
+      setError("Network error while generating the research brief.");
     } finally {
       setIsLoading(false);
     }
@@ -212,14 +119,14 @@ export function GenerateBriefForm() {
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <ModelModeOption
               checked={modelMode === "chat"}
-              description="Fast is optimized for quick structured generation with deepseek-chat."
+              description="Fast structured generation for a concise research brief."
               label="Fast"
               model="deepseek-chat"
               onChange={() => setModelMode("chat")}
             />
             <ModelModeOption
               checked={modelMode === "reasoner"}
-              description="Deep Reasoning uses deepseek-reasoner. It may be slower, and internal reasoning is never shown or stored."
+              description="Deeper analysis mode for slower, more deliberate synthesis."
               label="Deep Reasoning"
               model="deepseek-reasoner"
               onChange={() => setModelMode("reasoner")}
@@ -227,55 +134,60 @@ export function GenerateBriefForm() {
           </div>
         </fieldset>
 
-        <EvidenceToggle
-          checked={useSearch}
-          description="Fetch Tavily or mock search evidence for recent developments, catalysts, and risk context."
-          label="Use real-time web search"
-          onChange={setUseSearch}
-        />
-        <EvidenceToggle
-          checked={useSec}
-          description="Fetch SEC EDGAR companyfacts and submissions metadata for official disclosure evidence."
-          label="Use SEC official data"
-          onChange={setUseSec}
-        />
-        <EvidenceToggle
-          checked={useIr}
-          description="Use Company IR / earnings-release search evidence for official company narrative and management commentary."
-          label="Use Company IR / earnings release"
-          onChange={setUseIr}
-        />
-        <EvidenceToggle
-          checked={useMarket}
-          description="Fetch third-party free market evidence for quote, volume, market timestamp, and recent daily kline context."
-          label="Use Market Data"
-          onChange={setUseMarket}
-        />
-        <EvidenceToggle
-          checked={useConsensus}
-          description="Fetch revenue / EPS analyst estimate context for expectation-gap analysis. Consensus evidence is mock/draft in this MVP."
-          label="Use Consensus Estimates"
-          onChange={setUseConsensus}
-        />
-
-        <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
-          Current mode is LLM Demo / Evidence Draft. Optional Search, SEC,
-          Company IR, Market, and Consensus evidence remain draft inputs; free
-          market data may be delayed or incomplete, and consensus is mock-only
-          in this MVP. Saved share links preserve the rendered
-          BriefDocument only. Login, editing, version history, PDF full-text
-          parsing, transcript full-text parsing, and manual verification are
-          still out of scope.
+        <div className="mt-5 space-y-3">
+          <EvidenceToggle
+            checked={useSearch}
+            description="Add recent public web context for catalysts, developments, and risk signals."
+            label="Use real-time web search"
+            onChange={setUseSearch}
+          />
+          <EvidenceToggle
+            checked={useSec}
+            description="Use SEC EDGAR company facts and filing metadata as official disclosure context."
+            label="Use SEC official data"
+            onChange={setUseSec}
+          />
+          <EvidenceToggle
+            checked={useIr}
+            description="Use company IR and earnings-release materials for official company narrative and guidance context."
+            label="Use Company IR / earnings release"
+            onChange={setUseIr}
+          />
+          <EvidenceToggle
+            checked={useMarket}
+            description="Add quote, volume, timestamp, and recent trading context where available."
+            label="Use Market Data"
+            onChange={setUseMarket}
+          />
+          <EvidenceToggle
+            checked={useConsensus}
+            description="Add revenue and EPS estimate context for expectation-gap analysis."
+            label="Use Consensus Estimates"
+            onChange={setUseConsensus}
+          />
         </div>
+
+        <p className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
+          Select the data sources to include, then generate a research brief for
+          review and sharing. For research and information only; not investment
+          advice.
+        </p>
 
         <button
           type="submit"
           disabled={isLoading}
           className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[8px] bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--brand-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-hover)] focus:ring-offset-2 focus:ring-offset-[var(--background)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isLoading ? "Generating..." : "Generate Brief"}
+          {isLoading ? "Generating..." : "Generate Research Brief"}
         </button>
       </form>
+
+      {isLoading ? (
+        <div className="rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] p-4 text-sm leading-6 text-[var(--brand-ink)]">
+          Generating the brief and collecting selected source context. This can
+          take a moment.
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-[8px] border border-[var(--risk-border)] bg-[var(--risk-soft)] p-4 text-sm leading-6 text-[var(--risk-ink)]">
@@ -283,119 +195,49 @@ export function GenerateBriefForm() {
         </div>
       ) : null}
 
-      {result ? (
+      {result?.brief ? (
         <section className="rounded-[8px] border border-[var(--border)] bg-white p-4 sm:p-5">
-          <div className="grid gap-3 text-sm leading-6 text-[var(--foreground)] sm:grid-cols-2 lg:grid-cols-4">
-            <StatusItem label="Provider" value={result.provider} mono />
-            <StatusItem label="Model" value={result.model || "n/a"} mono />
-            <StatusItem label="Mode" value={result.modelMode || modelMode} mono />
-            <StatusItem label="Fallback" value={result.isFallback ? "Yes" : "No"} mono />
-            <StatusItem label="Validation" value={result.ok ? "Passed" : "Needs attention"} mono />
-            <StatusItem label="JSON Repair" value={getJsonRepairLabel(result)} mono />
-            <StatusItem label="Data Mode" value={result.brief?.metadata.dataMode || "n/a"} mono />
-            <StatusItem label="Evidence" value={evidenceStatus.label} mono />
-            <StatusItem label="Evidence Level" value={evidenceLevel || "none"} mono />
-            <StatusItem label="Coverage" value={getCoverageLabel(coverage)} mono />
-            <StatusItem label="Revenue / NI / EPS" value={getFactCoverageLabel(coverage)} mono />
-            <StatusItem label="Search Provider" value={result.searchProvider || "n/a"} mono />
-            <StatusItem label="Sources" value={String(evidenceStats.total)} mono />
-            <StatusItem label="High / Medium / Low" value={`${evidenceStats.high} / ${evidenceStats.medium} / ${evidenceStats.low}`} mono />
-            <StatusItem label="SEC Provider" value={result.secProvider || "n/a"} mono />
-            <StatusItem label="CIK" value={result.cik || result.brief?.secEvidencePack?.cik || "n/a"} mono />
-            <StatusItem label="Recent Filings" value={String(secStats.recentFilings)} mono />
-            <StatusItem label="Fiscal Facts" value={String(secStats.fiscalFacts)} mono />
-            <StatusItem label="IR Provider" value={result.irProvider || "n/a"} mono />
-            <StatusItem label="IR Sources" value={String(irStats.total)} mono />
-            <StatusItem label="Company IR Coverage" value={coverage?.hasCompanyIr ? "yes" : "no"} mono />
-            <StatusItem label="Earnings / Guidance" value={getIrCoverageLabel(coverage)} mono />
-            <StatusItem label="Market Provider" value={result.marketProvider || "n/a"} mono />
-            <StatusItem label="Market Chain" value={formatProviderChain(result.marketProviderChain)} mono />
-            <StatusItem label="Market Price" value={marketStats.price} mono />
-            <StatusItem label="Market Timestamp" value={marketStats.timestamp} mono />
-            <StatusItem label="Market History" value={marketStats.history} mono />
-            <StatusItem label="Consensus Provider" value={result.consensusProvider || "n/a"} mono />
-            <StatusItem label="Revenue Consensus" value={consensusStats.revenue} mono />
-            <StatusItem label="EPS Consensus" value={consensusStats.eps} mono />
-            <StatusItem label="Analyst Count" value={consensusStats.analystCount} mono />
+          <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground)] opacity-60">
+                Generated Research Brief
+              </p>
+              <h2 className="mt-1 text-base font-semibold leading-6 text-[var(--foreground)]">
+                {result.brief.metadata.ticker} / {result.brief.metadata.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--foreground)] opacity-75">
+                Review the data coverage and save the brief below to create an
+                unlisted public share page.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs font-semibold leading-5">
+              <span className="rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1 text-[var(--foreground)] opacity-75">
+                Mode: {result.modelMode || modelMode}
+              </span>
+              {result.brief.metadata.generatedAt ? (
+                <span className="rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1 font-mono text-[var(--foreground)] opacity-75">
+                  {result.brief.metadata.generatedAt}
+                </span>
+              ) : null}
+            </div>
           </div>
 
-          <p className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-85">
-            {getGenerationStatusMessage(result, evidenceStatus.shortDescription)}
-          </p>
-
-          <p className="mt-3 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
-            {evidenceStatus.warningDescription}
-          </p>
-
-          {result.jsonRepairSucceeded ? (
-            <p className="mt-3 rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft)] px-4 py-3 text-sm leading-6 text-[var(--brand-ink)]">
-              DeepSeek output was repaired into valid JSON.
+          <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-3 sm:p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-60">
+              Data Used in This Brief
             </p>
-          ) : null}
-
-          {(result.modelMode || modelMode) === "reasoner" ? (
-            <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm leading-6 text-[var(--foreground)] opacity-80">
-              Deep Reasoning may use internal reasoning, but this page only
-              displays the final structured BriefDocument. reasoning_content is
-              not shown or stored.
-            </p>
-          ) : null}
-
-          <IssuePanel title="Validation Issues" items={issueList} />
-          <IssuePanel title="Quality Warnings" items={qualityWarningList} brand />
-          <IssuePanel title="Search Warnings" items={searchWarningList} />
-          <IssuePanel title="SEC Warnings" items={secWarningList} />
-          <IssuePanel title="IR Warnings" items={irWarningList} />
-          <IssuePanel title="Market Warnings" items={marketWarningList} />
-          <IssuePanel title="Consensus Warnings" items={consensusWarningList} />
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {sourceItems.map((item) => (
+                <DataSourceCard key={item.label} item={item} />
+              ))}
+            </div>
+          </div>
         </section>
-      ) : null}
-
-      {result?.brief ? <DataBoundaryNote brief={result.brief} /> : null}
-
-      {researchEvidenceContext ? (
-        <ResearchEvidencePanel
-          context={researchEvidenceContext}
-          warnings={result?.evidenceWarnings}
-        />
-      ) : null}
-
-      {result?.brief?.evidencePack ? (
-        <SourceEvidenceList
-          evidenceLevel={evidenceLevel}
-          evidencePack={result.brief.evidencePack}
-          hasSecEvidence={Boolean(result.brief.secEvidencePack)}
-          secProvider={result.secProvider || result.brief.secEvidencePack?.provider}
-          warnings={searchWarningList}
-        />
-      ) : null}
-
-      {result?.brief?.secEvidencePack ? (
-        <SecEvidencePanel
-          secEvidencePack={result.brief.secEvidencePack}
-          warnings={secWarningList}
-        />
-      ) : null}
-
-      {result?.brief?.irEvidencePack ? (
-        <IrEvidencePanel
-          irEvidencePack={result.brief.irEvidencePack}
-          warnings={irWarningList}
-        />
-      ) : null}
-
-      {result?.brief?.marketEvidencePack ? (
-        <MarketEvidencePanel
-          marketEvidencePack={result.brief.marketEvidencePack}
-          warnings={marketWarningList}
-        />
-      ) : null}
-
-      {result?.brief?.consensusEvidencePack ? (
-        <ConsensusEvidencePanel
-          consensusEvidencePack={result.brief.consensusEvidencePack}
-          warnings={consensusWarningList}
-        />
+      ) : result && !error ? (
+        <div className="rounded-[8px] border border-[var(--risk-border)] bg-[var(--risk-soft)] p-4 text-sm leading-6 text-[var(--risk-ink)]">
+          The brief could not be generated. Please try again or adjust the
+          selected sources.
+        </div>
       ) : null}
 
       {result?.brief ? (
@@ -426,7 +268,7 @@ function EvidenceToggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-4 py-3 transition hover:bg-white focus-within:ring-2 focus-within:ring-[var(--brand-hover)]">
       <input
         type="checkbox"
         checked={checked}
@@ -489,184 +331,84 @@ function ModelModeOption({
   );
 }
 
-function StatusItem({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="min-w-0 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-3 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] opacity-60">
-        {label}
-      </p>
-      <p
-        className={`mt-1 break-words text-sm font-semibold ${
-          mono ? "font-mono" : ""
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function IssuePanel({
-  brand = false,
-  items,
-  title,
-}: {
-  brand?: boolean;
-  items: string[];
-  title: string;
-}) {
-  if (!items.length) return null;
-
+function DataSourceCard({ item }: { item: DataSourceItem }) {
   return (
     <div
-      className={`mt-4 rounded-[8px] border px-4 py-3 ${
-        brand
-          ? "border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-ink)]"
-          : "border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)]"
+      className={`min-w-0 rounded-[8px] border px-3 py-3 ${
+        item.isUsed
+          ? "border-[var(--brand-border)] bg-white"
+          : "border-[var(--border)] bg-[var(--muted)]"
       }`}
     >
-      <p className="text-sm font-semibold">{title}</p>
-      <ul className="mt-2 space-y-2 text-sm leading-6 opacity-85">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] opacity-60">
+        {item.label}
+      </p>
+      <p className="mt-1 text-sm font-semibold leading-6 text-[var(--foreground)]">
+        {item.status}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-[var(--foreground)] opacity-70">
+        {item.description}
+      </p>
     </div>
   );
 }
 
-function getEvidenceStats(brief?: BriefDocument) {
-  const sources = brief?.evidencePack?.sources || [];
-  const warnings = brief?.evidencePack?.warnings || [];
+function getDataSourceItems(result: GenerateApiResult | null): DataSourceItem[] {
+  const brief = result?.brief;
 
-  return sources.reduce(
-    (acc, source) => {
-      acc.total += 1;
-      acc[source.confidence || "low"] += 1;
-      return acc;
+  return [
+    {
+      label: "Web Search",
+      status: brief?.evidencePack ? "Used" : "Not selected",
+      description: brief?.evidencePack
+        ? `${brief.evidencePack.sources?.length || 0} public sources`
+        : "Enable web search for recent context.",
+      isUsed: Boolean(brief?.evidencePack),
     },
     {
-      total: 0,
-      high: 0,
-      medium: 0,
-      low: 0,
-      warningCount: warnings.length,
+      label: "SEC Filings",
+      status: brief?.secEvidencePack ? "Used" : "Not selected",
+      description: brief?.secEvidencePack
+        ? `${brief.secEvidencePack.recentFilings?.length || 0} recent filings`
+        : "Enable SEC data for official filings.",
+      isUsed: Boolean(brief?.secEvidencePack),
     },
-  );
+    {
+      label: "Company IR",
+      status: brief?.irEvidencePack ? "Used" : "Not selected",
+      description: brief?.irEvidencePack
+        ? `${brief.irEvidencePack.irItems?.length || 0} company items`
+        : "Enable IR for company materials.",
+      isUsed: Boolean(brief?.irEvidencePack),
+    },
+    {
+      label: "Market Data",
+      status: brief?.marketEvidencePack ? "Used" : "Not selected",
+      description: brief?.marketEvidencePack
+        ? getMarketDescription(brief)
+        : "Enable market data for quote context.",
+      isUsed: Boolean(brief?.marketEvidencePack),
+    },
+    {
+      label: "Consensus Estimates",
+      status: brief?.consensusEvidencePack ? "Used" : "Not selected",
+      description: brief?.consensusEvidencePack
+        ? `${brief.consensusEvidencePack.estimates?.length || 0} estimate periods`
+        : "Enable consensus for revenue and EPS context.",
+      isUsed: Boolean(brief?.consensusEvidencePack),
+    },
+  ];
 }
 
-function getSecStats(brief?: BriefDocument) {
-  return {
-    recentFilings: brief?.secEvidencePack?.recentFilings.length || 0,
-    fiscalFacts: brief?.secEvidencePack?.fiscalFacts.length || 0,
-    warningCount: brief?.secEvidencePack?.warnings?.length || 0,
-  };
-}
-
-function getIrStats(brief?: BriefDocument) {
-  return {
-    total: brief?.irEvidencePack?.irItems.length || 0,
-    warningCount: brief?.irEvidencePack?.warnings?.length || 0,
-  };
-}
-
-function getMarketStats(brief?: BriefDocument) {
-  const pack = brief?.marketEvidencePack;
-  const quote = pack?.quote;
-  const currency = quote?.currency ? ` ${quote.currency}` : "";
-  const timestamp = quote?.marketTimestamp || quote?.retrievedAt || "n/a";
-
-  return {
-    price:
-      quote?.price !== undefined
-        ? `${formatNumber(quote.price)}${currency}`
-        : "N/A",
-    timestamp,
-    history: pack?.priceHistory?.length
-      ? `${pack.priceHistory.length} daily`
-      : "N/A",
-  };
-}
-
-function formatProviderChain(chain?: string[]) {
-  return chain?.length ? chain.join(" -> ") : "n/a";
-}
-
-function getGenerationStatusMessage(
-  result: GenerateApiResult,
-  fallbackCopy: string,
-) {
-  const level = result.evidenceLevel || result.brief?.researchEvidenceContext?.evidenceLevel;
-
-  if (result.provider === "mock" && result.isFallback && level && level !== "none") {
-    return "Evidence was fetched, but LLM generation failed. Showing fallback mock brief.";
-  }
-
-  if (result.provider === "deepseek") {
-    return fallbackCopy;
-  }
-
-  return fallbackCopy;
-}
-
-function getJsonRepairLabel(result: GenerateApiResult) {
-  if (result.jsonRepairSucceeded) return "Succeeded";
-  if (result.jsonRepairStatus === "failed") return "Failed";
-  if (result.jsonRepairStatus === "attempted") return "Attempted";
-  return "Not needed";
-}
-
-function getCoverageLabel(coverage?: EvidenceCoverageSummary) {
-  if (!coverage) return "none";
-  return [
-    coverage.hasSearchEvidence ? "Search" : "Search missing",
-    coverage.hasSecEvidence ? "SEC" : "SEC missing",
-    coverage.hasCompanyIr ? "IR" : "IR missing",
-    coverage.hasMarketPrice ? "Market Price" : "Market Price missing",
-    coverage.hasConsensus ? "Consensus" : "Consensus missing",
-  ].join(" / ");
-}
-
-function getFactCoverageLabel(coverage?: EvidenceCoverageSummary) {
-  if (!coverage) return "n/a";
-  return `${coverage.hasRevenueFact ? "yes" : "no"} / ${
-    coverage.hasNetIncomeFact ? "yes" : "no"
-  } / ${coverage.hasEpsFact ? "yes" : "no"}`;
-}
-
-function getIrCoverageLabel(coverage?: EvidenceCoverageSummary) {
-  if (!coverage) return "n/a";
-  return `${coverage.hasEarningsRelease ? "earnings yes" : "earnings no"} / ${
-    coverage.hasGuidanceContext ? "guidance yes" : "guidance no"
-  }`;
-}
-
-function getConsensusStats(consensusEvidencePack?: ConsensusEvidencePack) {
-  const first = consensusEvidencePack?.estimates?.[0];
-  const currency = first?.currency ? ` ${first.currency}` : "";
-
-  return {
-    revenue:
-      first?.revenueAvg !== undefined
-        ? `${formatNumber(first.revenueAvg)}${currency}`
-        : "N/A",
-    eps:
-      first?.epsAvg !== undefined ? `${formatNumber(first.epsAvg)}${currency}` : "N/A",
-    analystCount:
-      first?.analystCount !== undefined ? String(first.analystCount) : "N/A",
-  };
+function getMarketDescription(brief: BriefDocument) {
+  const quote = brief.marketEvidencePack?.quote;
+  if (!quote?.price) return "Quote context attached.";
+  const currency = quote.currency ? ` ${quote.currency}` : "";
+  return `${formatNumber(quote.price)}${currency}`;
 }
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2,
   }).format(value);
-}
+}

@@ -23,20 +23,20 @@ export function BriefHero({ brief }: BriefHeroProps) {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground)] opacity-65">
-                {hero.subheadline}
+                {formatPublicLabel(hero.subheadline)}
               </p>
               <p className="mt-1 text-[15px] font-semibold leading-6 text-[var(--foreground)]">
-                {hero.eyebrow}
+                {formatPublicLabel(hero.eyebrow)}
               </p>
             </div>
           </div>
           <div className="mt-5 flex flex-col gap-2 text-sm leading-6 text-[var(--foreground)] opacity-75 sm:flex-row sm:flex-wrap sm:gap-x-6">
             <span className="min-w-0">
-              生成：
+              Generated:{" "}
               <span className="font-mono">{metadata.generatedAt}</span>
             </span>
             <span className="min-w-0">
-              更新：
+              Updated:{" "}
               <span className="font-mono">{metadata.updatedAt}</span>
             </span>
           </div>
@@ -54,24 +54,24 @@ export function BriefHero({ brief }: BriefHeroProps) {
             {hero.metrics.map((metric) => (
               <HeroMetric
                 key={metric.label}
-                label={metric.label}
-                value={metric.value}
+                label={formatPublicLabel(metric.label)}
+                value={formatPublicLabel(metric.value)}
               />
             ))}
           </div>
           <div className="mt-5 border-t border-[var(--border)] pt-4">
             <p className="text-base font-semibold leading-6 text-[var(--foreground)]">
-              {cta.title}
+              {formatPublicLabel(cta.title)}
             </p>
             <p className="mt-2 text-sm leading-6 text-[var(--foreground)] opacity-75">
-              {cta.description}
+              {formatPublicLabel(cta.description)}
             </p>
           </div>
           <a
             href={cta.buttonHref ?? "#"}
             className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[8px] bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--brand-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-hover)] focus:ring-offset-2 focus:ring-offset-[var(--background)]"
           >
-            {cta.buttonLabel}
+            {formatPublicLabel(cta.buttonLabel)}
           </a>
         </aside>
       </div>
@@ -92,7 +92,7 @@ function HeroBadge({ badge }: { badge: BriefBadge }) {
     <span
       className={`inline-flex max-w-full min-h-8 items-center rounded-full border px-3 py-1 text-xs leading-5 ${className}`}
     >
-      {badge.label}
+      {formatPublicLabel(badge.label)}
     </span>
   );
 }
@@ -108,4 +108,16 @@ function HeroMetric({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
+}
+
+function formatPublicLabel(value: string) {
+  return value
+    .replace(/Evidence Draft/gi, "Sources Attached")
+    .replace(/LLM Demo/gi, "AI Generated")
+    .replace(/Mock Consensus Evidence/gi, "Consensus Estimate Context")
+    .replace(/mock consensus evidence/gi, "consensus estimate context")
+    .replace(/mock evidence/gi, "estimate context")
+    .replace(/mock-only/gi, "estimate-context")
+    .replace(/MVP/gi, "Current Version")
+    .replace(/BriefDocument/gi, "research brief");
 }

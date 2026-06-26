@@ -22,11 +22,11 @@ export function ScenarioTable({ analysis }: ScenarioTableProps) {
     <section className="scroll-mt-8" id={analysis.id}>
       <SectionHeading
         index={String(analysis.order)}
-        title={analysis.title}
-        eyebrow="情景推演"
+        title={formatPublicText(analysis.title)}
+        eyebrow="Scenario Analysis"
       />
       <p className="mb-4 text-sm leading-6 text-[var(--foreground)] opacity-75">
-        {analysis.description}
+        {formatPublicText(analysis.description)}
       </p>
       <div className="overflow-hidden rounded-[8px] border border-[var(--border)] bg-white">
         <div className="border-b border-[var(--border)] bg-[var(--foreground)] px-4 py-4 text-white sm:px-5">
@@ -62,42 +62,42 @@ export function ScenarioTable({ analysis }: ScenarioTableProps) {
                 const tone = scenario.tone ?? "base";
 
                 return (
-                <tr
-                  key={scenario.name}
-                  className={`align-top ${rowClass[tone]}`}
-                >
-                  <td className="px-4 py-5">
-                    <span
-                      className={`inline-flex max-w-full rounded-full border px-3 py-1 text-[13px] font-semibold leading-5 ${toneClass[tone]}`}
-                    >
-                      {scenario.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-5 font-mono font-semibold text-[var(--foreground)]">
-                    {scenario.probability}
-                  </td>
-                  <td className="px-4 py-5 leading-7 text-[var(--foreground)] opacity-85">
-                    {scenario.keyAssumptions}
-                    {scenario.operatingSetup ? (
-                      <span className="mt-2 block text-[13px] leading-6 opacity-70">
-                        {scenario.operatingSetup}
+                  <tr
+                    key={scenario.name}
+                    className={`align-top ${rowClass[tone]}`}
+                  >
+                    <td className="px-4 py-5">
+                      <span
+                        className={`inline-flex max-w-full rounded-full border px-3 py-1 text-[13px] font-semibold leading-5 ${toneClass[tone]}`}
+                      >
+                        {formatPublicText(scenario.label)}
                       </span>
-                    ) : null}
-                    {scenario.trigger ? (
-                      <span className="mt-3 block border-t border-[var(--border)] pt-2 text-[13px] leading-6 opacity-75">
-                        <span className="font-semibold">Trigger: </span>
-                        {scenario.trigger}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-5 font-mono text-base font-semibold text-[var(--foreground)]">
-                    {scenario.targetPrice}
-                  </td>
-                  <td className="px-4 py-5 font-mono font-semibold text-[var(--foreground)]">
-                    {scenario.impliedReturn}
-                  </td>
-                </tr>
-              );
+                    </td>
+                    <td className="px-4 py-5 font-mono font-semibold text-[var(--foreground)]">
+                      {scenario.probability}
+                    </td>
+                    <td className="px-4 py-5 leading-7 text-[var(--foreground)] opacity-85">
+                      {formatPublicText(scenario.keyAssumptions)}
+                      {scenario.operatingSetup ? (
+                        <span className="mt-2 block text-[13px] leading-6 opacity-70">
+                          {formatPublicText(scenario.operatingSetup)}
+                        </span>
+                      ) : null}
+                      {scenario.trigger ? (
+                        <span className="mt-3 block border-t border-[var(--border)] pt-2 text-[13px] leading-6 opacity-75">
+                          <span className="font-semibold">Trigger: </span>
+                          {formatPublicText(scenario.trigger)}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-5 font-mono text-base font-semibold text-[var(--foreground)]">
+                      {scenario.targetPrice}
+                    </td>
+                    <td className="px-4 py-5 font-mono font-semibold text-[var(--foreground)]">
+                      {scenario.impliedReturn}
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
@@ -131,4 +131,16 @@ function SectionHeading({
       </div>
     </div>
   );
+}
+
+function formatPublicText(value: string) {
+  return value
+    .replace(/Evidence Draft/gi, "Sources Attached")
+    .replace(/LLM Demo/gi, "AI Generated")
+    .replace(/Mock Consensus Evidence/gi, "Consensus Estimate Context")
+    .replace(/mock consensus evidence/gi, "consensus estimate context")
+    .replace(/mock evidence/gi, "estimate context")
+    .replace(/mock-only/gi, "estimate-context")
+    .replace(/MVP/gi, "Current Version")
+    .replace(/BriefDocument/gi, "research brief");
 }

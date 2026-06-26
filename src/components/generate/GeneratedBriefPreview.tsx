@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { BriefPage } from "@/components/brief/BriefPage";
-import { getEvidenceStatusCopy } from "@/lib/evidence/evidenceStatusCopy";
 import type { BriefDocument } from "@/types/brief";
 import type { SavedBriefRecord } from "@/types/savedBrief";
 
@@ -33,25 +32,10 @@ export function GeneratedBriefPreview({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<SaveBriefApiResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
-  const evidenceStatus = getEvidenceStatusCopy({
-    evidenceLevel: brief.researchEvidenceContext?.evidenceLevel,
-    hasSearchEvidence: Boolean(brief.evidencePack),
-    hasSecEvidence: Boolean(brief.secEvidencePack),
-    hasIrEvidence: Boolean(brief.irEvidencePack),
-    hasMarketEvidence: Boolean(brief.marketEvidencePack),
-    hasConsensusEvidence: Boolean(brief.consensusEvidencePack),
-    searchProvider: brief.evidencePack?.searchProvider,
-    secProvider: brief.secEvidencePack?.provider,
-    irProvider: brief.irEvidencePack?.provider,
-    marketProvider: brief.marketEvidencePack?.provider,
-    consensusProvider: brief.consensusEvidencePack?.provider,
-  });
-  const statusMessage = getGenerationMetaMessage(brief, generationMeta);
-  const repairLabel = getRepairLabel(generationMeta);
   const canSave = brief.metadata.dataMode === "evidence-draft";
   const sourceCounts = useMemo(() => getBriefSourceCounts(brief), [brief]);
   const fallbackWarning = generationMeta?.isFallback
-    ? "Fallback warning: this saved brief will preserve the mock fallback result because the LLM provider did not return a usable BriefDocument."
+    ? "This preview uses a fallback generated result because the model provider did not return a complete research brief."
     : "";
 
   async function handleSaveBrief() {
@@ -115,53 +99,33 @@ export function GeneratedBriefPreview({
     <section className="mt-8 overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--background)]">
       <div className="border-b border-[var(--border)] bg-white px-4 py-4 sm:px-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground)] opacity-60">
-          Generated Preview
+          Research Brief Preview
         </p>
         <h2 className="mt-1 text-base font-semibold leading-6 text-[var(--foreground)]">
           {brief.metadata.ticker} / {brief.metadata.title}
         </h2>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold leading-5">
-          <span className="rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-[var(--brand-ink)]">
-            Data: {brief.metadata.dataMode}
-          </span>
-          <span className="rounded-full border border-[var(--border)] bg-[var(--muted)] px-3 py-1 text-[var(--foreground)] opacity-75">
-            Evidence: {evidenceStatus.label}
-          </span>
-          {generationMeta ? (
-            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
-              JSON Repair: {repairLabel}
-            </span>
-          ) : null}
-          {brief.marketEvidencePack ? (
-            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
-              Market: {brief.marketEvidencePack.provider}
-            </span>
-          ) : null}
-          {brief.marketEvidencePack?.providerChain?.length ? (
-            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
-              Market Chain: {brief.marketEvidencePack.providerChain.join(" -> ")}
-            </span>
-          ) : null}
-          {brief.consensusEvidencePack ? (
-            <span className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[var(--foreground)] opacity-75">
-              Consensus: {brief.consensusEvidencePack.provider}
-            </span>
-          ) : null}
+          <SourcePill active={Boolean(brief.evidencePack)}>Web Search</SourcePill>
+          <SourcePill active={Boolean(brief.secEvidencePack)}>SEC Filings</SourcePill>
+          <SourcePill active={Boolean(brief.irEvidencePack)}>Company IR</SourcePill>
+          <SourcePill active={Boolean(brief.marketEvidencePack)}>Market Data</SourcePill>
+          <SourcePill active={Boolean(brief.consensusEvidencePack)}>
+            Consensus Estimates
+          </SourcePill>
         </div>
-        {statusMessage ? (
-          <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm leading-6 text-[var(--foreground)] opacity-85">
-            {statusMessage}
-          </p>
-        ) : null}
+        <p className="mt-3 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm leading-6 text-[var(--foreground)] opacity-85">
+          Review the brief, then save it to create an unlisted public share page.
+          Saved pages read from storage and do not regenerate the report on refresh.
+        </p>
+
         <div className="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-3 sm:p-4">
           <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold leading-6 text-[var(--foreground)]">
-                Saved Brief Share Link
+                Public Share Link
               </p>
               <p className="mt-1 text-sm leading-6 text-[var(--foreground)] opacity-75">
-                Saves this rendered BriefDocument and creates an unlisted public
-                /s/[slug] page without regenerating or fetching evidence again.
+                Save this generated research brief as an unlisted public page.
               </p>
             </div>
             <button
@@ -174,13 +138,14 @@ export function GeneratedBriefPreview({
                 ? "Saving..."
                 : saveResult?.ok
                   ? "Share Link Created"
-                  : "Save & Create Share Link"}
+                  : "Save Public Share Link"}
             </button>
           </div>
 
           {!canSave ? (
             <p className="mt-3 rounded-[8px] border border-[var(--risk-border)] bg-[var(--risk-soft)] px-3 py-2 text-sm leading-6 text-[var(--risk-ink)]">
-              Only evidence-draft BriefDocuments can be saved in Phase 10.
+              Only completed research briefs with attached source context can be
+              saved.
             </p>
           ) : null}
 
@@ -237,46 +202,24 @@ export function GeneratedBriefPreview({
   );
 }
 
-function getGenerationMetaMessage(
-  brief: BriefDocument,
-  meta: GeneratedBriefPreviewProps["generationMeta"],
-) {
-  const level = brief.researchEvidenceContext?.evidenceLevel;
-  const evidenceStatus = getEvidenceStatusCopy({
-    evidenceLevel: level,
-    hasSearchEvidence: Boolean(brief.evidencePack),
-    hasSecEvidence: Boolean(brief.secEvidencePack),
-    hasIrEvidence: Boolean(brief.irEvidencePack),
-    hasMarketEvidence: Boolean(brief.marketEvidencePack),
-    hasConsensusEvidence: Boolean(brief.consensusEvidencePack),
-    searchProvider: brief.evidencePack?.searchProvider,
-    secProvider: brief.secEvidencePack?.provider,
-    irProvider: brief.irEvidencePack?.provider,
-    marketProvider: brief.marketEvidencePack?.provider,
-    consensusProvider: brief.consensusEvidencePack?.provider,
-  });
-
-  if (meta?.provider === "mock" && meta.isFallback && level) {
-    return "Evidence was fetched, but LLM generation failed. Showing fallback mock brief.";
-  }
-
-  if (meta?.provider === "deepseek") {
-    return evidenceStatus.shortDescription;
-  }
-
-  if (meta?.jsonRepairSucceeded) {
-    return "DeepSeek output was repaired into valid JSON.";
-  }
-
-  return "";
-}
-
-function getRepairLabel(meta: GeneratedBriefPreviewProps["generationMeta"]) {
-  if (!meta) return "Not needed";
-  if (meta.jsonRepairSucceeded) return "Succeeded";
-  if (meta.jsonRepairStatus === "failed") return "Failed";
-  if (meta.jsonRepairStatus === "attempted") return "Attempted";
-  return "Not needed";
+function SourcePill({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: string;
+}) {
+  return (
+    <span
+      className={`rounded-full border px-3 py-1 ${
+        active
+          ? "border-[var(--brand-border)] bg-[var(--brand-soft)] text-[var(--brand-ink)]"
+          : "border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] opacity-70"
+      }`}
+    >
+      {children}: {active ? "Used" : "Not selected"}
+    </span>
+  );
 }
 
 function getBriefSourceCounts(brief: BriefDocument) {
@@ -295,4 +238,4 @@ function getBriefSourceCounts(brief: BriefDocument) {
     researchSources: brief.researchEvidenceContext?.sourceRegistry?.length || 0,
     researchFacts: brief.researchEvidenceContext?.factLedger?.length || 0,
   };
-}
+}

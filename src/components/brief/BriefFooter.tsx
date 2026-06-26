@@ -11,7 +11,7 @@ export function BriefFooter({ disclaimer, metadata }: BriefFooterProps) {
       <div className="rounded-[8px] border border-[var(--risk-border)] bg-[var(--risk-soft)] p-4 text-sm leading-7 text-[var(--risk-ink)] sm:p-5">
         <p className="font-semibold">{disclaimer.text}</p>
         <div className="mt-4 flex flex-col gap-2 border-t border-[var(--risk-border)] pt-4 text-xs leading-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <span>{metadata.product} / {metadata.shareLabel || "Research Page"}</span>
+          <span>{metadata.product} / Public Research Brief</span>
           <span className="font-mono">Updated {metadata.updatedAt}</span>
         </div>
       </div>

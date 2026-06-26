@@ -9,8 +9,8 @@ type BriefNotFoundProps = {
 
 export function BriefNotFound({
   badgeLabel = "Unlisted Share Page",
-  detail = "The current V0.1 app can show the static /s/nvda demo or a saved Phase 10 share link.",
-  message = "This public brief link does not exist, has not been saved, or is unavailable.",
+  detail = "Check the link, or generate a new unlisted research brief from Moki Alpha Brief.",
+  message = "This public brief link does not exist, has not been saved, or cannot be opened right now.",
   title = "Brief not found",
 }: BriefNotFoundProps) {
   return (
@@ -36,10 +36,10 @@ export function BriefNotFound({
         </div>
 
         <Link
-          href="/"
+          href="/generate"
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-[8px] bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--brand-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-hover)] focus:ring-offset-2 focus:ring-offset-[var(--background)] sm:w-auto"
         >
-          Back to home
+          Generate a new brief
         </Link>
       </section>
     </main>

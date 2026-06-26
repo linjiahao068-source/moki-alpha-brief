@@ -21,7 +21,7 @@ export function BriefToc({ items }: BriefTocProps) {
                 <span className="mt-0.5 w-5 shrink-0 font-mono text-xs font-semibold text-[var(--brand-ink)]">
                   {item.order}
                 </span>
-                <span className="min-w-0">{item.label}</span>
+                <span className="min-w-0">{formatPublicText(item.label)}</span>
               </a>
             </li>
           ))}
@@ -29,4 +29,16 @@ export function BriefToc({ items }: BriefTocProps) {
       </nav>
     </aside>
   );
+}
+
+function formatPublicText(value: string) {
+  return value
+    .replace(/Evidence Draft/gi, "Sources Attached")
+    .replace(/LLM Demo/gi, "AI Generated")
+    .replace(/Mock Consensus Evidence/gi, "Consensus Estimate Context")
+    .replace(/mock consensus evidence/gi, "consensus estimate context")
+    .replace(/mock evidence/gi, "estimate context")
+    .replace(/mock-only/gi, "estimate-context")
+    .replace(/MVP/gi, "Current Version")
+    .replace(/BriefDocument/gi, "research brief");
 }
