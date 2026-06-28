@@ -52,7 +52,7 @@ const SOURCE_STATUS_CONFIG: Record<V2SourceKind, SourceStatusConfig> = {
     dataRole: "recentPublicContext",
     legacySourceKind: "search",
     caveat:
-      "Web Search is recent public context only and remains evidence-draft.",
+      "Web Search is recent public context only and still requires human review.",
     missingPatterns: [/recent public web context/i, /news/i, /search/i],
   },
   sec: {
@@ -60,7 +60,7 @@ const SOURCE_STATUS_CONFIG: Record<V2SourceKind, SourceStatusConfig> = {
     dataRole: "officialDisclosure",
     legacySourceKind: "sec",
     caveat:
-      "SEC companyfacts and submissions are official disclosure inputs, but this adapter still marks the context as evidence-draft.",
+      "SEC companyfacts and submissions are official disclosure inputs, but the extracted memo context still requires human review.",
     missingPatterns: [/sec/i, /filing/i, /fiscal/i, /revenue/i, /eps/i],
   },
   companyIr: {
@@ -84,7 +84,7 @@ const SOURCE_STATUS_CONFIG: Record<V2SourceKind, SourceStatusConfig> = {
     dataRole: "estimateContext",
     legacySourceKind: "consensus",
     caveat:
-      "Consensus is limited to mock estimateContext or unavailable in this phase; it is not real Wall Street consensus.",
+      "Consensus is limited to internal estimate context or unavailable; it is not real Wall Street consensus.",
     missingPatterns: [/consensus/i, /estimate/i, /analyst/i],
   },
 };
@@ -315,7 +315,7 @@ function buildV2ConsensusContext(
       asOf: null,
       warnings: [],
       caveat:
-        "Consensus is unavailable. V2 must not imply real Wall Street consensus estimates are connected.",
+        "Consensus is unavailable. The memo must not imply real Wall Street consensus estimates are connected.",
     };
   }
 
@@ -327,7 +327,7 @@ function buildV2ConsensusContext(
     asOf: consensusEvidencePack.asOf || null,
     warnings: Array.from(new Set(consensusEvidencePack.warnings || [])),
     caveat:
-      "Consensus is mock estimateContext only. It is not SEC actual data, market price data, verified-real-data, or investment advice.",
+      "Consensus is internal estimate context only. It is not SEC actual data, market price data, verified data, or investment advice.",
   };
 }
 
