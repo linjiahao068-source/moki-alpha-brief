@@ -17,6 +17,7 @@ import {
   getValuationSafetyDecision,
   type V2ValuationSafetyDecision,
 } from "./valuationSafety";
+import { BUY_SIDE_MEMO_V2_BODY_MODULES } from "./buySideMemoContentRules";
 
 export type BuySideMemoValidationResult = {
   ok: boolean;
@@ -80,6 +81,7 @@ export function validateBuySideMemo(
     warnings,
   );
   validateResearchContext(memo.researchContext, issues, warnings);
+  validateContentLogic(memo, issues, warnings);
 
   if (containsForbiddenVerifiedRealData(memo)) {
     issues.push("BuySideMemoV2 must not claim verified-real-data.");
@@ -100,6 +102,12 @@ export function isBuySideMemoV2(value: unknown): value is BuySideMemoV2 {
 function validateRoot(memo: Record<string, unknown>, issues: string[]) {
   if (memo.schemaVersion !== BUY_SIDE_MEMO_V2_SCHEMA_VERSION) {
     issues.push('schemaVersion must be "buy-side-memo-v2".');
+  }
+
+  if ("dataSources" in memo) {
+    issues.push(
+      "dataSources must not be a separate body module; use sourceFooter for bottom data-source information.",
+    );
   }
 }
 
@@ -278,6 +286,159 @@ function validateConsensusStatus(
   }
 }
 
+function validateContentLogic(
+  memo: Record<string, unknown>,
+  issues: string[],
+  warnings: string[],
+) {
+  validateInvestmentConclusionLogic(memo.investmentConclusion, issues);
+  validateCompanyProfileLogic(memo.companyProfile, warnings);
+  validateFundamentalLogic(memo.fundamentalAnalysis, warnings);
+  validateCatalystRiskLogic(memo.catalystRisk, warnings);
+  validateMonitoringDashboardLogic(memo.monitoringDashboard, issues);
+  validateSourceFooterLogic(memo.sourceFooter, issues);
+
+  const valuation = asRecord(memo.valuationFramework);
+  const conclusion = asRecord(memo.investmentConclusion);
+  if (
+    valuation?.dataSufficiency !== "sufficient" &&
+    conclusion?.confidence === "high"
+  ) {
+    issues.push(
+      "investmentConclusion.confidence cannot be high when valuation dataSufficiency is partial or insufficient.",
+    );
+  }
+}
+
+function validateInvestmentConclusionLogic(
+  value: unknown,
+  issues: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if (!hasMeaningfulText(section.thesis)) {
+    issues.push("investmentConclusion.thesis is required for thesis-first logic.");
+  }
+
+  if (!hasMeaningfulText(section.conclusion)) {
+    issues.push("investmentConclusion.conclusion must state the current view tilt.");
+  }
+
+  if (!hasMeaningfulText(section.keyDebate)) {
+    issues.push("investmentConclusion.keyDebate is required.");
+  }
+
+  if (!hasMeaningfulText(section.variantView)) {
+    issues.push("investmentConclusion.variantView is required.");
+  }
+
+  if (!hasStringArray(section.whatWouldChangeMind)) {
+    issues.push("investmentConclusion.whatWouldChangeMind must include thesis breakpoints.");
+  }
+
+  if (
+    section.confidence !== "high" &&
+    section.confidence !== "medium" &&
+    section.confidence !== "low"
+  ) {
+    issues.push("investmentConclusion.confidence must be high, medium, or low.");
+  }
+}
+
+function validateCompanyProfileLogic(
+  value: unknown,
+  warnings: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if (!hasMeaningfulText(section.businessSummary)) {
+    warnings.push("companyProfile should explain how the company makes money.");
+  }
+
+  if (!hasMeaningfulText(section.moat)) {
+    warnings.push("companyProfile should cover competitive advantage or vulnerability.");
+  }
+}
+
+function validateFundamentalLogic(
+  value: unknown,
+  warnings: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if (
+    !hasMeaningfulText(section.revenueQuality) &&
+    !hasMeaningfulText(section.marginStructure)
+  ) {
+    warnings.push("fundamentalAnalysis should judge operating trend, not only list data.");
+  }
+}
+
+function validateCatalystRiskLogic(
+  value: unknown,
+  warnings: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if (!hasTextBlockArray(section.catalysts)) {
+    warnings.push("catalystRisk should include 3-6 month catalysts.");
+  }
+
+  if (!hasTextBlockArray(section.risks)) {
+    warnings.push("catalystRisk should include thesis-linked risks.");
+  }
+}
+
+function validateMonitoringDashboardLogic(
+  value: unknown,
+  issues: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if (!Array.isArray(section.metrics) || section.metrics.length === 0) {
+    issues.push("monitoringDashboard.metrics must include trackable thesis metrics.");
+    return;
+  }
+
+  section.metrics.forEach((metricValue, index) => {
+    const metric = asRecord(metricValue);
+    if (!metric) {
+      issues.push(`monitoringDashboard.metrics[${index}] must be an object.`);
+      return;
+    }
+
+    for (const field of [
+      "label",
+      "whyItMatters",
+      "threshold",
+      "currentStatus",
+      "source",
+      "updateFrequency",
+    ]) {
+      if (!hasMeaningfulText(metric[field])) {
+        issues.push(`monitoringDashboard.metrics[${index}].${field} is required.`);
+      }
+    }
+  });
+}
+
+function validateSourceFooterLogic(
+  value: unknown,
+  issues: string[],
+) {
+  const section = asRecord(value);
+  if (!section) return;
+
+  if ((BUY_SIDE_MEMO_V2_BODY_MODULES as readonly unknown[]).includes(section.label)) {
+    issues.push("sourceFooter must not reuse a body module label.");
+  }
+}
+
 function readValuationScenarios(
   value: unknown,
   issues: string[],
@@ -354,6 +515,28 @@ function hasMissingData(value: unknown) {
   }
 
   return Array.isArray(value) && value.some((item) => typeof item === "string");
+}
+
+function hasMeaningfulText(value: unknown) {
+  return (
+    typeof value === "string" &&
+    value.trim().length >= 4 &&
+    value !== V2_UNAVAILABLE
+  );
+}
+
+function hasStringArray(value: unknown) {
+  return Array.isArray(value) && value.some((item) => hasMeaningfulText(item));
+}
+
+function hasTextBlockArray(value: unknown) {
+  return (
+    Array.isArray(value) &&
+    value.some((item) => {
+      const block = asRecord(item);
+      return hasMeaningfulText(block?.title) && hasMeaningfulText(block?.body);
+    })
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

@@ -132,6 +132,11 @@ export type BuySideMemoV2Metric = {
   value: V2Maybe<string | number>;
   unit: V2Maybe<string>;
   period: V2Maybe<string>;
+  whyItMatters: V2Maybe<string>;
+  threshold: V2Maybe<string>;
+  currentStatus: V2Maybe<string>;
+  source: V2Maybe<string>;
+  updateFrequency: V2Maybe<string>;
   sourceFactIds: string[] | null;
   confidence: EvidenceConfidence | null;
 };
