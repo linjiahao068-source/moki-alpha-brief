@@ -231,10 +231,6 @@ function getBuySideMemoV2StorageConfig(): BuySideMemoV2StorageConfig {
 }
 
 function getBuySideMemoV2ShareBaseUrl(requestBaseUrl?: string) {
-  if (requestBaseUrl) {
-    return normalizeV2ShareBaseUrl(requestBaseUrl, { allowLocal: true });
-  }
-
   const configured = [
     process.env.BRIEF_SHARE_BASE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
@@ -244,8 +240,19 @@ function getBuySideMemoV2ShareBaseUrl(requestBaseUrl?: string) {
     process.env.BASE_URL,
     process.env.VERCEL_URL,
   ].find((value) => value?.trim());
+  const isStrictProduction = isVercelProductionRuntime();
 
-  if (configured) return normalizeV2ShareBaseUrl(configured);
+  if (configured) {
+    return normalizeV2ShareBaseUrl(configured, {
+      allowLocal: !isStrictProduction,
+    });
+  }
+
+  if (requestBaseUrl) {
+    return normalizeV2ShareBaseUrl(requestBaseUrl, {
+      allowLocal: !isStrictProduction,
+    });
+  }
 
   if (process.env.NODE_ENV === "production") {
     throw new Error("Share link base URL is not configured.");
@@ -284,6 +291,10 @@ function isLocalShareBaseUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function isVercelProductionRuntime() {
+  return process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production";
 }
 
 function getRedisKey(slug: string) {
