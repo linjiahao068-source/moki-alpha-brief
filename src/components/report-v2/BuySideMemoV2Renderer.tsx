@@ -19,10 +19,11 @@ export function BuySideMemoV2Renderer({ record }: BuySideMemoV2RendererProps) {
     memo.metadata.companyName,
     record.companyName || ticker,
   );
+  const sourceCoverage = `${record.sourceCounts.sources} sources / ${record.sourceCounts.facts} facts`;
 
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <header className="border-b border-[var(--border)] bg-white/95">
+      <header className="border-b border-[var(--border)] bg-white/90">
         <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-ink)]">
@@ -45,13 +46,19 @@ export function BuySideMemoV2Renderer({ record }: BuySideMemoV2RendererProps) {
         </div>
       </header>
 
-      <InvestmentConclusion memo={memo} />
+      <InvestmentConclusion
+        companyName={companyName}
+        memo={memo}
+        savedAt={formatText(record.updatedAt || memo.metadata.updatedAt)}
+        sourceCoverage={sourceCoverage}
+        ticker={ticker}
+      />
 
-      <div className="mx-auto grid w-full max-w-[1180px] gap-8 px-4 pb-10 sm:px-6 lg:grid-cols-[210px_minmax(0,1fr)]">
+      <div className="mx-auto grid w-full max-w-[1180px] gap-6 px-4 pb-10 pt-6 sm:px-6 lg:grid-cols-[210px_minmax(0,1fr)]">
         <aside className="hidden lg:block">
-          <nav className="sticky top-4 rounded-[8px] border border-[var(--border)] bg-white p-3">
+          <nav className="sticky top-4 rounded-[8px] border border-[var(--border)] bg-white p-3 shadow-[0_18px_48px_-46px_rgba(0,0,0,0.35)]">
             <p className="px-2 py-2 text-xs font-semibold uppercase tracking-[0.16em] opacity-55">
-              Sections
+              Memo cards
             </p>
             <div className="grid gap-1">
               {BODY_MODULE_ANCHORS.map((item) => (
@@ -67,7 +74,7 @@ export function BuySideMemoV2Renderer({ record }: BuySideMemoV2RendererProps) {
           </nav>
         </aside>
 
-        <div className="min-w-0">
+        <div className="grid min-w-0 gap-6">
           <CompanyProfile memo={memo} />
           <FundamentalAnalysis memo={memo} />
           <ValuationFramework memo={memo} />

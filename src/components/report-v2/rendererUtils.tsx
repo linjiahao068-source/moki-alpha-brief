@@ -65,21 +65,21 @@ export function SectionShell({
 }) {
   return (
     <section
-      className="scroll-mt-8 border-t border-[var(--border)] py-8 first:border-t-0 sm:py-10"
+      className="scroll-mt-8 rounded-[8px] border border-[var(--border)] bg-white p-4 shadow-[0_18px_48px_-44px_rgba(0,0,0,0.42)] sm:p-5"
       id={id}
     >
-      <div className="mb-5 flex min-w-0 items-start gap-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-[6px] bg-[var(--foreground)] font-mono text-xs font-semibold text-white">
-          {index}
-        </span>
+      <div className="mb-5 flex min-w-0 flex-col gap-3 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-ink)]">
             {eyebrow}
           </p>
-          <h2 className="mt-1 text-xl font-semibold leading-8 text-[var(--foreground)] sm:text-2xl">
+          <h2 className="mt-1 text-xl font-semibold leading-8 text-[var(--foreground)]">
             {title}
           </h2>
         </div>
+        <span className="inline-flex w-fit shrink-0 items-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 font-mono text-xs font-semibold text-[var(--brand-ink)]">
+          Module {index}
+        </span>
       </div>
       {children}
     </section>
@@ -94,7 +94,7 @@ export function FieldBlock({
   value: ReactNode;
 }) {
   return (
-    <div className="rounded-[8px] border border-[var(--border)] bg-white p-4">
+    <div className="rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] opacity-55">
         {label}
       </p>
@@ -151,7 +151,7 @@ export function TextBlockList({
     <div className="grid gap-3">
       {items.map((block, index) => (
         <article
-          className="rounded-[8px] border border-[var(--border)] bg-white p-4"
+          className="rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-4"
           key={`${formatText(block.title, COPY.researchPoint)}-${index}`}
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -277,7 +277,7 @@ export function isMeaningful(value: unknown) {
 }
 
 export function sanitizePublicText(value: string) {
-  return value
+  return stripMarkdownScaffolding(value)
     .replace(/\bmock\b/gi, COPY.estimateContext)
     .replace(/\bdemo\b/gi, "\u793a\u4f8b")
     .replace(/\bdraft\b/gi, "\u7814\u7a76\u8fb9\u754c")
@@ -289,4 +289,13 @@ export function sanitizePublicText(value: string) {
     .replace(/\bvalidationFailed\b/g, "\u6821\u9a8c\u672a\u901a\u8fc7")
     .replace(/evidence-draft/gi, "\u7814\u7a76\u8bc1\u636e\u8fb9\u754c")
     .replace(/verified-real-data/gi, "\u5df2\u590d\u6838\u6570\u636e\u8fb9\u754c");
+}
+
+function stripMarkdownScaffolding(value: string) {
+  return value
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s{0,3}[-*]\s+\*\*(.*?)\*\*/gm, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
 }

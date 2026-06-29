@@ -38,7 +38,7 @@ export function ValuationFramework({ memo }: ValuationFrameworkProps) {
         </InfoPill>
         {!canShowTargets ? (
           <span className="text-sm leading-6 text-[var(--foreground)] opacity-75">
-            {formatText(section.professionalPrompt, COPY.targetNotSupported)}
+            {COPY.targetNotSupported}
           </span>
         ) : null}
       </div>
@@ -61,7 +61,7 @@ export function ValuationFramework({ memo }: ValuationFrameworkProps) {
         />
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[8px] border border-[var(--border)] bg-white">
+      <div className="mt-5 overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--muted)]">
         <div className="border-b border-[var(--border)] px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-ink)]">
             Bear / Base / Bull
@@ -70,80 +70,72 @@ export function ValuationFramework({ memo }: ValuationFrameworkProps) {
             {"\u60c5\u666f\u4f30\u503c\u6846\u67b6"}
           </h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--muted)] text-xs uppercase tracking-[0.12em] opacity-70">
-                <th className="px-4 py-3 font-semibold">Scenario</th>
-                <th className="px-4 py-3 font-semibold">Probability</th>
-                <th className="px-4 py-3 font-semibold">Assumptions</th>
-                <th className="px-4 py-3 font-semibold">Target price</th>
-                <th className="px-4 py-3 font-semibold">Implied return</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {scenarios.map((scenario) => (
-                <tr className="align-top" key={scenario.name}>
-                  <td className="px-4 py-4 font-semibold">
-                    {SCENARIO_LABELS[scenario.name]}
-                  </td>
-                  <td className="px-4 py-4">
-                    {formatProbability(scenario.probability)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <BulletList
-                      emptyText={
-                        "\u6838\u5fc3\u5047\u8bbe\u9700\u8981\u540e\u7eed\u8ddf\u8e2a"
-                      }
-                      items={scenario.assumptions}
+        {scenarios.length ? (
+          <div className="grid gap-3 p-4 lg:grid-cols-3">
+            {scenarios.map((scenario) => (
+              <article
+                className="rounded-[8px] border border-[var(--border)] bg-white p-4"
+                key={scenario.name}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] opacity-55">
+                      Scenario
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold">
+                      {SCENARIO_LABELS[scenario.name]}
+                    </h3>
+                  </div>
+                  <InfoPill>{formatProbability(scenario.probability)}</InfoPill>
+                </div>
+                <div className="mt-4">
+                  <BulletList
+                    emptyText={
+                      "\u6838\u5fc3\u5047\u8bbe\u9700\u8981\u540e\u7eed\u8ddf\u8e2a"
+                    }
+                    items={scenario.assumptions}
+                  />
+                </div>
+                {canShowTargets ? (
+                  <div className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4">
+                    <MiniMetric
+                      label="Target price"
+                      value={formatTargetPrice(scenario.targetPrice)}
                     />
-                  </td>
-                  <td className="px-4 py-4">
-                    {formatTargetPrice(
-                      scenario.targetPrice,
-                      canShowTargets,
-                    )}
-                  </td>
-                  <td className="px-4 py-4">
-                    {formatImpliedReturn(
-                      scenario.impliedReturnPercent,
-                      canShowTargets,
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!scenarios.length ? (
-                <tr>
-                  <td className="px-4 py-4" colSpan={5}>
-                    {COPY.targetNotSupported}
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                    <MiniMetric
+                      label="Implied return"
+                      value={formatImpliedReturn(scenario.impliedReturnPercent)}
+                    />
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 text-sm leading-7">{COPY.targetNotSupported}</div>
+        )}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <FieldBlock
-          label="Probability-weighted target"
-          value={
-            canShowTargets
-              ? formatTargetPrice(section.probabilityWeightedTargetPrice, true)
-              : COPY.unavailableForTarget
-          }
-        />
-        <FieldBlock
-          label="Probability-weighted return"
-          value={
-            canShowTargets
-              ? formatImpliedReturn(
-                  section.probabilityWeightedImpliedReturnPercent,
-                  true,
-                )
-              : COPY.unavailableForTarget
-          }
-        />
+        {canShowTargets ? (
+          <>
+            <FieldBlock
+              label="Probability-weighted target"
+              value={formatTargetPrice(section.probabilityWeightedTargetPrice)}
+            />
+            <FieldBlock
+              label="Probability-weighted return"
+              value={formatImpliedReturn(
+                section.probabilityWeightedImpliedReturnPercent,
+              )}
+            />
+          </>
+        ) : (
+          <FieldBlock
+            label={"\u4f30\u503c\u7eaa\u5f8b"}
+            value={COPY.targetNotSupported}
+          />
+        )}
         <FieldBlock
           label="Missing inputs"
           value={
@@ -179,7 +171,7 @@ function formatProbability(value: number | null) {
   return `${percent.toFixed(0)}%`;
 }
 
-function formatTargetPrice(value: number | null, canShowTargets: boolean) {
+function formatTargetPrice(value: number | null, canShowTargets = true) {
   if (!canShowTargets) return COPY.targetNotSupported;
   if (typeof value !== "number" || Number.isNaN(value)) {
     return COPY.targetNotSupported;
@@ -188,11 +180,22 @@ function formatTargetPrice(value: number | null, canShowTargets: boolean) {
   return `$${value.toFixed(2)}`;
 }
 
-function formatImpliedReturn(value: number | null, canShowTargets: boolean) {
+function formatImpliedReturn(value: number | null, canShowTargets = true) {
   if (!canShowTargets) return COPY.unavailableForTarget;
   if (typeof value !== "number" || Number.isNaN(value)) {
     return COPY.unavailableForTarget;
   }
 
   return `${value.toFixed(1)}%`;
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[8px] border border-[var(--border)] bg-[var(--muted)] px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] opacity-55">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold">{value}</p>
+    </div>
+  );
 }

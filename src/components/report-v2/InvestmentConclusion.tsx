@@ -4,54 +4,95 @@ import {
   COPY,
   FieldBlock,
   formatConfidence,
+  formatDataSufficiency,
   formatText,
   InfoPill,
-  SectionShell,
   TextBlockList,
 } from "./rendererUtils";
 
 type InvestmentConclusionProps = {
+  companyName: string;
   memo: BuySideMemoV2;
+  savedAt: string;
+  sourceCoverage: string;
+  ticker: string;
 };
 
-export function InvestmentConclusion({ memo }: InvestmentConclusionProps) {
+export function InvestmentConclusion({
+  companyName,
+  memo,
+  savedAt,
+  sourceCoverage,
+  ticker,
+}: InvestmentConclusionProps) {
   const section = memo.investmentConclusion;
   const stance = inferStance(section.conclusion || section.thesis);
   const bias = inferResearchBias(section.conclusion || section.variantView);
+  const dataSufficiency = memo.valuationFramework.dataSufficiency;
 
   return (
     <section
       className="mx-auto w-full max-w-[1180px] px-4 pt-6 sm:px-6 sm:pt-8"
       id="investment-conclusion"
     >
-      <div className="rounded-[8px] border border-[var(--foreground)] bg-white shadow-[0_22px_60px_-48px_rgba(0,0,0,0.5)]">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="rounded-[8px] border border-[var(--foreground)] bg-white shadow-[0_24px_60px_-48px_rgba(0,0,0,0.55)]">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="p-5 sm:p-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-ink)]">
-              Investment Conclusion
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold leading-tight text-[var(--foreground)] sm:text-[42px]">
-              {formatText(memo.metadata.title, "Buy-side memo")}
-            </h1>
-            <p className="mt-4 max-w-[760px] text-[15px] leading-8 text-[var(--foreground)] opacity-80 sm:text-base">
-              {formatText(section.thesis)}
-            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-ink)]">
+                  Buy-side memo summary
+                </p>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <div className="inline-flex rounded-[8px] border border-[var(--brand-border)] bg-[var(--brand-soft-strong)] px-4 py-3 font-mono text-4xl font-semibold leading-none text-[var(--brand-ink)] sm:text-5xl">
+                    {ticker}
+                  </div>
+                  <div className="min-w-0 pb-1">
+                    <h1 className="text-xl font-semibold leading-7 text-[var(--foreground)] sm:text-2xl">
+                      {companyName}
+                    </h1>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] opacity-60">
+                      {formatText(memo.metadata.title, "Buy-side memo")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-1 text-sm leading-6 opacity-70 sm:text-right">
+                <span>Saved memo</span>
+                <span className="font-mono">{savedAt}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[8px] border border-[var(--border)] bg-[var(--muted)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-ink)]">
+                Core thesis
+              </p>
+              <p className="mt-2 text-[15px] leading-8 text-[var(--foreground)] sm:text-base">
+                {formatText(section.thesis)}
+              </p>
+            </div>
           </div>
 
           <aside className="border-t border-[var(--border)] bg-[var(--muted)] p-5 sm:p-6 lg:border-l lg:border-t-0">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
               <Signal label="Stance" value={stance} tone="brand" />
               <Signal label="Research bias" value={bias} />
               <Signal
                 label="Confidence"
                 value={formatConfidence(section.confidence)}
               />
+              <Signal
+                label="Data sufficiency"
+                value={formatDataSufficiency(dataSufficiency)}
+                tone={dataSufficiency === "sufficient" ? "brand" : "risk"}
+              />
+              <Signal label="Source coverage" value={sourceCoverage} />
             </div>
           </aside>
         </div>
 
-        <div className="grid gap-4 border-t border-[var(--border)] p-5 sm:grid-cols-3 sm:p-6">
-          <FieldBlock label="Core thesis" value={formatText(section.conclusion)} />
+        <div className="grid gap-4 border-t border-[var(--border)] p-5 lg:grid-cols-[1fr_1fr_1.2fr] sm:p-6">
+          <FieldBlock label="Conclusion" value={formatText(section.conclusion)} />
           <FieldBlock label="Key debate" value={formatText(section.keyDebate)} />
           <FieldBlock
             label="Thesis breakpoint"
@@ -65,18 +106,10 @@ export function InvestmentConclusion({ memo }: InvestmentConclusionProps) {
             }
           />
         </div>
-      </div>
 
-      <div className="mt-6">
-        <SectionShell
-          eyebrow="Variant perception"
-          id="investment-variant"
-          index="01"
-          title={"\u6295\u8d44\u7ed3\u8bba"}
-        >
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid gap-4 border-t border-[var(--border)] p-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] sm:p-6">
             <FieldBlock
-              label="Market debate"
+              label="Variant perception"
               value={formatText(section.variantView)}
             />
             <TextBlockList
@@ -85,8 +118,7 @@ export function InvestmentConclusion({ memo }: InvestmentConclusionProps) {
                 "\u5173\u952e\u5224\u65ad\u4ecd\u9700\u8981\u66f4\u591a\u53ef\u9760\u6765\u6e90\u652f\u6491"
               }
             />
-          </div>
-        </SectionShell>
+        </div>
       </div>
     </section>
   );
@@ -98,7 +130,7 @@ function Signal({
   value,
 }: {
   label: string;
-  tone?: "brand" | "neutral";
+  tone?: "brand" | "neutral" | "risk";
   value: string;
 }) {
   return (
@@ -107,7 +139,7 @@ function Signal({
         {label}
       </p>
       <div className="mt-2">
-        <InfoPill tone={tone === "brand" ? "brand" : "neutral"}>{value}</InfoPill>
+        <InfoPill tone={tone || "neutral"}>{value}</InfoPill>
       </div>
     </div>
   );
